@@ -1,1 +1,8 @@
-brownsville.csv
+# Pycache directory
+__pycache__/*
+
+# Datasets
+*.csv
+
+# VS Code workspace 
+workspace.code-workspace
