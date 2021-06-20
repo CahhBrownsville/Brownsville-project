@@ -137,7 +137,7 @@ Before comparing these datasets, we will look at a breif overview of each datase
 `Note:` This data does not present a full picture of 311 calls or service requests, in part because of operational and system complexities associated with remote call taking necessitated by the unprecedented volume 311 is handling during the Covid-19 crisis. The City is working to address this issue.
 
 
-### Complaint Problems
+### 2) Complaint Problems
 - **Agency:** Department of Housing Preservation and Development (HPD)
 - **URL:** https://data.cityofnewyork.us/Housing-Development/Complaint-Problems/a2nx-4u46
 - **Description:** Contains information about problems associated with complaints.
@@ -311,29 +311,29 @@ This section contains information of fields that share the same information or c
 
 1. Zip Code
     - Datasets: 
-        - [311 Service Requests](#311-service-requests-from-2010-to-present)
+        - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
             - Field name(s): `Incident Zip`
-        - [DOB Complaints Received](#dob-complaints-received)
+        - [DOB Complaints Received](#3-dob-complaints-received)
             - Field name(s): `ZIP Code`
 2. Complaint category
     - Datasets:
-        - [Complaint Problems](#complaint-problems)
+        - [Complaint Problems](#2-complaint-problems)
             - Field name(s): `MajorCategory`, `MinorCategory`
-        - [DOB Complaints Received](#dob-complaints-received)
+        - [DOB Complaints Received](#3-dob-complaints-received)
             - Field name(s): `Complaint Category`
 3. Address 
     - Datasets:
-        - [311 Service Requests](#311-service-requests-from-2010-to-present)
+        - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
             - Field name(s): `Incident Address`, `Street Name`, `Cross Street 1`, `Cross Street 2`, `Intersection Street 1`, `Intersection Street 2`, `Address Type`, `X Coordinate (State Plane)`, `Y Coordinate (State Plane)`, `Latitude`, `Longitude`, `Location`
-        - [DOB Complaints Received](#dob-complaints-received)
+        - [DOB Complaints Received](#3-dob-complaints-received)
             - Field name(s): `House Street`, `House Number`
 4. Status and resolution
     - Datasets:
         - [311 Service Requests](#311-service-requests-from-2010-to-present)
             - Field name(s): `Status`, `Resolution Description`
-        - [Complaint Problems](#complaint-problems)
+        - [Complaint Problems](#2-complaint-problems)
             - Field name(s): `Status`, `StatusDescription`
-        - [DOB Complaints Received](#dob-complaints-received)
+        - [DOB Complaints Received](#3-dob-complaints-received)
             - Field name(s): `Status`
 ---
 ## Building Coverage
