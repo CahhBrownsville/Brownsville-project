@@ -207,7 +207,7 @@ Before comparing these datasets, we will look at a breif overview of each datase
         - **Description:** Complaint number starting with 
 
         | Borough Code |    Borough    |
-        ---------------|---------------
+        |:------------:|:-------------:|
         |       1      |   Manhattan   |
         |       2      |     Bronx     |
         |       3      |   Brooklyn    |
@@ -257,22 +257,84 @@ Before comparing these datasets, we will look at a breif overview of each datase
     - **DOBRunDate**
         - **Description:** Date when query is run and pushed to Open Data. Could be used to differentiate report dates.
         - **Type:** `Date & Time`
+
+<br>
+
+<h3><center> Table containing all field names from the aforementioned datasets </center></h1>
+
+|311 Service Requests from 2010 to Present|Complaint Problems|DOB Complaints Received|
+|:-----------------------------------:|:--------------------:|:--------------------:|
+| Unique Key                          | ProblemID            | Complaint Number     |
+| Created Date                        | ComplaintID          | Status               |
+| Closed Date                         | UnitTypeID           | Date Entered         |
+| Agency                              | UnitType             | House Number         |
+| Agency Name                         | SpaceTypeID          | ZIP Code             |
+| Complaint Type                      | SpaceType            | House Street         |
+| Descriptor                          | TypeID               | BIN                  |
+| Location Type                       | Type                 | Community Board      |
+| Incident Zip                        | MajorCategoryID      | Special District     |       
+| Incident Address                    | MajorCategory        | Complaint Category   |         
+| Street Name                         | MinorCategoryID      | Unit                 |
+| Cross Street 1                      | MinorCategory        | Disposition Date     |   
+| Cross Street 2                      | CodeID               | Disposition Code     |
+| Intersection Street 1               | Code                 | Inspection Date      |  
+| Intersection Street 2               | StatusID             | DOBRunDate           | 
+| Address Type                        | Status               |                      | 
+| City                                | StatusDate           |                      |  
+| Landmark                            | StatusDescription    |                      | 
+| Facility Type                       |                      |                      |
+| Status                              |                      |                      |
+| Due Date                            |                      |                      |
+| Resolution Description              |                      |                      |
+| Resolution Action Updated Date      |                      |                      | 
+| Community Board                     |                      |                      |
+| BBL                                 |                      |                      |
+| Borough                             |                      |                      |
+| X Coordinate (State Plane)          |                      |                      |  
+| Y Coordinate (State Plane)          |                      |                      |  
+| Open Data Channel Type              |                      |                      |
+| Park Facility Name                  |                      |                      |
+| Park Borough                        |                      |                      | 
+| Vehicle Type                        |                      |                      | 
+| Taxi Company Borough                |                      |                      |
+| Taxi Pick Up Location               |                      |                      |
+| Bridge Highway Name                 |                      |                      |
+| Bridge Highway Direction            |                      |                      |   
+| Road Ramp                           |                      |                      | 
+| Bridge Highway Segment              |                      |                      |
+| Latitude                            |                      |                      | 
+| Longitude                           |                      |                      |
+| Location                            |                      |                      |
 ---
 ## Shared Fields
+This section contains information of fields that share the same information or could be potentially matched according to thier values. 
 
 1. Zip Code
     - Datasets: 
         - [311 Service Requests](#311-service-requests-from-2010-to-present)
-            - Field name: `Incident Zip`
+            - Field name(s): `Incident Zip`
         - [DOB Complaints Received](#dob-complaints-received)
-            - Field name: `ZIP Code`
+            - Field name(s): `ZIP Code`
 2. Complaint category
-    - Datasets
+    - Datasets:
         - [Complaint Problems](#complaint-problems)
-            - Field name: `MajorCategory`, `MinorCategory`
+            - Field name(s): `MajorCategory`, `MinorCategory`
         - [DOB Complaints Received](#dob-complaints-received)
-            - Field name: `Complaint Category`
-    
+            - Field name(s): `Complaint Category`
+3. Address 
+    - Datasets:
+        - [311 Service Requests](#311-service-requests-from-2010-to-present)
+            - Field name(s): `Incident Address`, `Street Name`, `Cross Street 1`, `Cross Street 2`, `Intersection Street 1`, `Intersection Street 2`, `Address Type`, `X Coordinate (State Plane)`, `Y Coordinate (State Plane)`, `Latitude`, `Longitude`, `Location`
+        - [DOB Complaints Received](#dob-complaints-received)
+            - Field name(s): `House Street`, `House Number`
+4. Status and resolution
+    - Datasets:
+        - [311 Service Requests](#311-service-requests-from-2010-to-present)
+            - Field name(s): `Status`, `Resolution Description`
+        - [Complaint Problems](#complaint-problems)
+            - Field name(s): `Status`, `StatusDescription`
+        - [DOB Complaints Received](#dob-complaints-received)
+            - Field name(s): `Status`
 ---
 ## Building Coverage
 
