@@ -3,14 +3,14 @@
 ## Sources 
 For the Brownsville project, we have proposed a set of data sources to explore and analyze, namely _311 Service Requests from 2010 to Present_, _Complain Problems_, and _DOB Complaints Received_. 
 
-Before comparing these datasets, we will look at a breif overview of each dataset and their variable descriptions. 
+Before comparing these datasets, we will look at a breif overview of each dataset and their Field descriptions. 
 
 ----------
 ### 1) 311 Service Requests from 2010 to Present
 - **Agency:** 311
 - **URL:** https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9
 - **Description:** All 311 Service Requests from 2010 to present. This information is automatically updated daily.
-- **Variable description:**
+- **Field descriptions:**
         - **Description:** Unique identifier of a Service Request (SR) in the open data set 
         - **Type:** `Plain Text`
     - **Created Date**
@@ -141,7 +141,7 @@ Before comparing these datasets, we will look at a breif overview of each datase
 - **Agency:** Department of Housing Preservation and Development (HPD)
 - **URL:** https://data.cityofnewyork.us/Housing-Development/Complaint-Problems/a2nx-4u46
 - **Description:** Contains information about problems associated with complaints.
-- **Variable descriptions:**
+- **Field descriptions:**
     - **ProblemID**
         - **Description:** Unique identifier of this problem
         - **Type:** `Number`
@@ -202,7 +202,7 @@ Before comparing these datasets, we will look at a breif overview of each datase
 - **Agency:** 	Department of Buildings (DOB)
 - **Description:** This is the universe of complaints received by Department of Buildings (DOB). It includes complaints that come from 311 or that are entered into the system by DOB staff.
 - **URL:** https://data.cityofnewyork.us/Housing-Development/DOB-Complaints-Received/eabe-havv
-- **Variable descriptions:**
+- **Field descriptions:**
     - **Complaint Number**
         - **Description:** Complaint number starting with 
 
