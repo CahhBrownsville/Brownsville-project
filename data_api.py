@@ -1,3 +1,10 @@
+"""
+TODO: 
+    - Create dataste iterator class
+    - Add selector, where, order, and group keyword
+      to __get_results method in the Client class.
+"""
+
 import pandas as pd
 from sodapy import Socrata
 from dataclasses import dataclass
@@ -53,8 +60,7 @@ class DatasetMetaInformation:
                     f"\n\t- Description:\n{description}"                      + \
                     f"\n\t- Category: {self.category}"                        + \
                     f"\n\t- Attribution: {self.attribution}"                  + \
-                    f"\n\t- Data Last Updated: {self.last_update:%m-%d-%Y}"
-        
+                    f"\n\t- Data Last Updated: {self.last_update:%m-%d-%Y}"      
 
 
 class Client(object):
@@ -167,6 +173,7 @@ class Client(object):
         limit:int=2000, offset:int=0
     ) -> pd.DataFrame:
         """
+
         """
 
         # Return a dataset containing all records from the specified endpoint
