@@ -337,9 +337,118 @@ This section contains information of fields that share the same information or c
             - Field name(s): `Status`
 ---
 ## Building Coverage
-
+- Brownsville.csv
+    - 4653
+- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+    - TBD
+- [Complaint Problems](#2-complaint-problems)
+    - TBD
+- [DOB Complaints Received](#3-dob-complaints-received)
+    - TBD
+    
 ---
 ## Types of Complaints
+- Brownsville.csv
+    - **Major Categories:**
+        - HEAT/HOT WATER
+        - UNSANITARY CONDITION
+        - PAINT/PLASTER
+        - PLUMBING
+        - DOOR/WINDOW
+        - WATER LEAK
+        - ELECTRIC
+        - GENERAL
+        - FLOORING/STAIRS
+        - SAFETY
+        - APPLIANCE
+        - OUTSIDE BUILDING
+        - ELEVATOR
+        - HEATING
+        - NONCONST
+        - CONSTRUCTION
+    - **Minor Categories:**
+        - ENTIRE BUILDING
+        - APARTMENT ONLY
+        - PESTS
+        - WALL
+        - MOLD
+        - CEILING
+        - DOOR
+        - FLOOR
+        - BASIN/SINK
+        - HEAVY FLOW
+        - WINDOW FRAME
+        - SLOW LEAK
+        - WATER SUPPLY
+        - BATHTUB/SHOWER
+        - ELECTRIC/GAS RANGE
+        - GARBAGE/RECYCLING STORAGE
+        - CABINET
+        - TOILET
+        - OUTLET/SWITCH
+        - RADIATOR
+        - BELL/BUZZER/INTERCOM
+        - NO LIGHTING
+        - SMOKE DETECTOR
+        - REFRIGERATOR
+        - CARBON MONOXIDE DETECTOR
+        - POWER OUTAGE
+        - LIGHTING
+        - COOKING GAS
+        - DAMP SPOT
+        - WIRING
+        - DOOR FRAME
+        - WINDOW GUARD BROKEN/MISSING
+        - FIRE ESCAPE
+        - WINDOW PANE
+        - SEWAGE
+        - MAILBOX
+        - STAIRS
+        - VENTILATION SYSTEM
+        - STEAM PIPE/RISER
+        - JANITOR/SUPER
+        - WINDOW/FRAME
+        - ROOF DOOR/HATCH
+        - ROOFING
+        - SIGNAGE MISSING
+        - PAVEMENT
+        - DOOR/FRAME
+        - MAINTENANCE
+        - HEAT RELATED
+        - BOILER
+        - SKYLIGHT
+        - GUTTER/LEADER
+        - SEWER
+        - SPRINKLER
+        - PORCH/BALCONY
+        - DOOR TO DUMBWAITER
+        - WATER-LEAKS
+        - LOCKS
+        - VERMIN
+        - WINDOWS
+        - BELL-BUZZER/INTERCOM
+        - ELECTRIC-SUPPLY
+        - CERAMIC-TILE
+        - DOORS
+        - RUBBISH
+        - OUTLET COVER
+        - MICROWAVE
+        - ILLEGAL
+        - HEAT-PLANT
+- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+    - TBD
+- [Complaint Problems](#2-complaint-problems)
+    - TBD
+- [DOB Complaints Received](#3-dob-complaints-received)
+    - TBD
 
 ---
 ## Date range
+- Brownsville.csv
+    - 12/03/2003 - 04/30/2021
+- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+    - TBD
+- [Complaint Problems](#2-complaint-problems)
+    - TBD
+- [DOB Complaints Received](#3-dob-complaints-received)
+    - TBD
