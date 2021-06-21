@@ -1,16 +1,57 @@
-# Complaint Categories found throughout the Bronsville.csv dataset
+# Major and Minor Categories Information
+This document contains the major and minor categories of the complaints reported in the Bronsville dataset. Each table is sorted by the number of reports of each minor category.
 
-## Appliance
 
-| MinorCategory               | Number of reports |
+# Categories
+
+## Heat/hot water
+
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
-| ELECTRIC/GAS RANGE          | 2618  |
-| REFRIGERATOR                | 1626  |
+| ENTIRE BUILDING             | 22995 |
+| APARTMENT ONLY              | 17546 |
+
+
+## Unsanitary condition
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| PESTS                       | 12176 |
+| MOLD                        | 7017  |
+| GARBAGE/RECYCLING STORAGE   | 2413  |
+| SEWAGE                      | 561   |
+
+
+## Paint/plaster
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| WALL                        | 7662  |
+| CEILING                     | 6785  |
+| WINDOW/FRAME                | 232   |
+| RADIATOR                    | 183   |
+| DOOR/FRAME                  | 108   |
+| CABINET                     | 77    |
+
+
+## Plumbing
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| BASIN/SINK                  | 4441  |
+| WATER SUPPLY                | 2796  |
+| BATHTUB/SHOWER              | 2723  |
+| TOILET                      | 2245  |
+| RADIATOR                    | 1700  |
+| STEAM PIPE/RISER            | 278   |
+| BOILER                      | 68    |
+| SEWER                       | 45    |
+| WATER-LEAKS                 | 12    |
 
 
 ## Door/Window
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
 | DOOR                        | 6075  |
 | WINDOW FRAME                | 3754  |
@@ -19,9 +60,18 @@
 | DOOR TO DUMBWAITER          | 20    |
 
 
+## Water leak
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| HEAVY FLOW                  | 4278  |
+| SLOW LEAK                   | 3637  |
+| DAMP SPOT                   | 1162  |
+
+
 ## Electric
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
 | OUTLET/SWITCH               | 1956  |
 | NO LIGHTING                 | 1772  |
@@ -32,17 +82,9 @@
 | ELECTRIC-SUPPLY             | 4     |
 
 
-## Flooring/stairs
-
-| MinorCategory               | Number of reports |
-|-----------------------------|-------|
-| FLOOR                       | 5981  |
-| STAIRS                      | 476   |
-
-
 ## General
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
 | CABINET                     | 2196  |
 | BELL/BUZZER/INTERCOM        | 1794  |
@@ -60,64 +102,17 @@
 | WINDOWS                     | 5     |
 
 
-## Heat/hot water
+## Flooring/stairs
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
-| ENTIRE BUILDING             | 22995 |
-| APARTMENT ONLY              | 17546 |
-
-
-## Heating
-
-| MinorCategory               | Number of reports |
-|-----------------------------|-------|
-| HEAT RELATED                | 73    |
-| HEAT-PLANT                  | 1     |
-
-
-## Outside building
-
-| MinorCategory               | Number of reports |
-|-----------------------------|-------|
-| ROOF DOOR/HATCH             | 203   |
-| ROOFING                     | 192   |
-| PAVEMENT                    | 122   |
-| SKYLIGHT                    | 59    |
-| GUTTER/LEADER               | 51    |
-| PORCH/BALCONY               | 21    |
-
-
-## Paint/plaster
-
-| MinorCategory               | Number of reports |
-|-----------------------------|-------|
-| WALL                        | 7662  |
-| CEILING                     | 6785  |
-| WINDOW/FRAME                | 232   |
-| RADIATOR                    | 183   |
-| DOOR/FRAME                  | 108   |
-| CABINET                     | 77    |
-
-
-## Plumbing
-
-| MinorCategory               | Number of reports |
-|-----------------------------|-------|
-| BASIN/SINK                  | 4441  |
-| WATER SUPPLY                | 2796  |
-| BATHTUB/SHOWER              | 2723  |
-| TOILET                      | 2245  |
-| RADIATOR                    | 1700  |
-| STEAM PIPE/RISER            | 278   |
-| BOILER                      | 68    |
-| SEWER                       | 45    |
-| WATER-LEAKS                 | 12    |
+| FLOOR                       | 5981  |
+| STAIRS                      | 476   |
 
 
 ## Safety
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
 | SMOKE DETECTOR              | 1668  |
 | CARBON MONOXIDE DETECTOR    | 1576  |
@@ -127,20 +122,29 @@
 | OUTLET COVER                | 2     |
 
 
-## Unsanitary condition
+## Appliance
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
-| PESTS                       | 12176 |
-| MOLD                        | 7017  |
-| GARBAGE/RECYCLING STORAGE   | 2413  |
-| SEWAGE                      | 561   |
+| ELECTRIC/GAS RANGE          | 2618  |
+| REFRIGERATOR                | 1626  |
 
 
-## Water leak
+## Outside building
 
-| MinorCategory               | Number of reports |
+| Minor Category               | Number of reports |
 |-----------------------------|-------|
-| HEAVY FLOW                  | 4278  |
-| SLOW LEAK                   | 3637  |
-| DAMP SPOT                   | 1162  |
+| ROOF DOOR/HATCH             | 203   |
+| ROOFING                     | 192   |
+| PAVEMENT                    | 122   |
+| SKYLIGHT                    | 59    |
+| GUTTER/LEADER               | 51    |
+| PORCH/BALCONY               | 21    |
+
+
+## Heating
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| HEAT RELATED                | 73    |
+| HEAT-PLANT                  | 1     |
