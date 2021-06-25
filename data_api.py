@@ -1,6 +1,6 @@
 """
 TODO: 
-    - Create dataste iterator class
+    - Create dataset iterator class
     - Add selector, where, order, and group keyword
       to __get_results method in the Client class.
 """
@@ -98,7 +98,7 @@ class Client(object):
                         self._dob_complaints_metadata.information])
         return s
 
-    def load_311(self, fetch_all:bool=False, limit:int=2000, offset:int=0) -> pd.DataFrame:
+    def load_311(self, fetch_all:bool=False, **kwargs) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the 311 Service Requests from 2010 to Present dataset.
 
@@ -106,10 +106,6 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
-        limit:
-            Maximum number of rows returned in the DataFrame. Default = 2000.
-        offset: 
-            Dataset page offset used when fetching the records. Default = 0.
         """
 
         # Set the metadata loaded flag
@@ -117,12 +113,11 @@ class Client(object):
             self._311_metadata.loaded = True
 
         df = self.__get_results(self._311_metadata.endpoint,
-                                    fetch_all=fetch_all, limit=limit, 
-                                    offset=offset)
+                                    fetch_all=fetch_all, **kwargs)
         
         return df
 
-    def load_complaint_problems(self, fetch_all:bool=False, limit:int=2000, offset:int=0) -> pd.DataFrame:
+    def load_complaint_problems(self, fetch_all:bool=False, **kwargs) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the Complaint Problems dataset.
         
@@ -130,22 +125,17 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
-        limit:
-            Maximum number of rows returned in the DataFrame. Default = 2000.
-        offset: 
-            Dataset page offset used when fetching the records. Default = 0.
         """
         # Set the metadata loaded flag
         if not self._complaint_problems_metadata.loaded:
             self._complaint_problems_metadata.loaded = True
 
         df = self.__get_results(self._complaint_problems_metadata.endpoint,
-                                    fetch_all=fetch_all, limit=limit, 
-                                    offset=offset)
+                                    fetch_all=fetch_all, **kwargs)
         
         return df
 
-    def load_dob_complaints(self, fetch_all:bool=False, limit:int=2000, offset:int=0) -> pd.DataFrame:
+    def load_dob_complaints(self, fetch_all:bool=False, **kwargs) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the DOB Complaint Received dataset.
 
@@ -153,24 +143,18 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
-        limit:
-            Maximum number of rows returned in the DataFrame. Default = 2000.
-        offset: 
-            Dataset page offset used when fetching the records. Default = 0.
         """
         # Set the metadata loaded flag
         if not self._dob_complaints_metadata.loaded:
             self._dob_complaints_metadata.loaded = True
         
         df = self.__get_results(self._dob_complaints_metadata.endpoint,
-                                    fetch_all=fetch_all, limit=limit, 
-                                    offset=offset)
+                                    fetch_all=fetch_all, **kwargs)
         return df
 
     def __get_results(
         self, endpoint:str,
-        fetch_all:bool=False, 
-        limit:int=2000, offset:int=0
+        fetch_all:bool=False, **kwargs
     ) -> pd.DataFrame:
         """
 
@@ -178,9 +162,14 @@ class Client(object):
 
         # Return a dataset containing all records from the specified endpoint
         if fetch_all:
-            results = self._client.get(endpoint)
+            results = self._client.get_all(endpoint, **kwargs)
         else:
-            results = self._client.get(endpoint, limit=limit, offset=offset)
+            results = self._client.get(endpoint, **kwargs)
         
         return pd.DataFrame.from_records(results)
     
+
+if __name__ == "__main__":
+    c = Client()
+    df = c.load_311(True, where="agency='3-1-1'")
+    print(df.shape)
