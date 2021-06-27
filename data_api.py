@@ -1,8 +1,6 @@
 """
 TODO: 
     - Create dataset iterator class
-    - Add selector, where, order, and group keyword
-      to __get_results method in the Client class.
 """
 
 from numpy.lib.function_base import select
@@ -172,35 +170,3 @@ class Client(object):
     def close(self):
         self._client.close()
     
-
-if __name__ == "__main__":
-    c = Client()
-    # df1 = c.load_311(True, 
-    #     select="min(created_date)",
-    #     where="agency='DOB'"
-    # )
-    # df2 = c.load_311(True, 
-    #     select="max(created_date)",
-    #     where="agency='DOB'"
-    # )
-    # df3 = c.load_311(True, 
-    #     select="distinct agency, agency_name",
-    #     group="agency, agency_name"
-    # )
-    # print(df1.head()) 
-    # print(df2.head()) 
-    # for v in df3.values:
-    #     a, an = v
-    #     print(a, an)
-    # # print(df3.values) 
-
-    # c.close()
-    
-    date_range_dob_complaints = c.load_dob_complaints(
-    fetch_all=True,
-    select="min(date_entered), max(date_entered), count(distinct BIN)",
-    where="starts_with(zip_code, '11212') OR starts_with(zip_code, '11233')"
-) 
-    print(date_range_dob_complaints)
-
-    # print(df.shape)
