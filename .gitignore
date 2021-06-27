@@ -3,3 +3,8 @@ __pycache__/*
 
 # VS Code workspace 
 workspace.code-workspace
+
+# Data Sources reference files
+data/311_SR_Data_Dictionary_2018.xlsx
+data/major-minor_categories.csv
+major-minor_categories.pdf
