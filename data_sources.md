@@ -338,13 +338,13 @@ This section contains information of fields that share the same information or c
 ---
 ## Building Coverage
 - Brownsville.csv
-    - 4653
+    - 4653 unique buildings
 - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-    - TBD
+    - 6797
 - [Complaint Problems](#2-complaint-problems)
     - TBD
 - [DOB Complaints Received](#3-dob-complaints-received)
-    - TBD
+    - 7978 unique buildings
     
 ---
 ## Types of Complaints
@@ -447,8 +447,8 @@ This section contains information of fields that share the same information or c
 - Brownsville.csv
     - 12/03/2003 - 04/30/2021
 - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-    - TBD
+    - 01/01/2010 - 06/25/2021
 - [Complaint Problems](#2-complaint-problems)
-    - TBD
+    - 02/36/2003 - 31/05/2021
 - [DOB Complaints Received](#3-dob-complaints-received)
-    - TBD
+    - 01/01/2004 - 12/21/2020
