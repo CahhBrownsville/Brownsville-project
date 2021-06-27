@@ -349,92 +349,155 @@ This section contains information of fields that share the same information or c
 ---
 ## Types of Complaints
 - Brownsville.csv
-    - **Major Categories:**
-        - HEAT/HOT WATER
-        - UNSANITARY CONDITION
-        - PAINT/PLASTER
-        - PLUMBING
-        - DOOR/WINDOW
-        - WATER LEAK
-        - ELECTRIC
-        - GENERAL
-        - FLOORING/STAIRS
-        - SAFETY
-        - APPLIANCE
-        - OUTSIDE BUILDING
-        - ELEVATOR
-        - HEATING
-        - NONCONST
-        - CONSTRUCTION
-    - **Minor Categories:**
-        - ENTIRE BUILDING
-        - APARTMENT ONLY
-        - PESTS
-        - WALL
-        - MOLD
-        - CEILING
-        - DOOR
-        - FLOOR
-        - BASIN/SINK
-        - HEAVY FLOW
-        - WINDOW FRAME
-        - SLOW LEAK
-        - WATER SUPPLY
-        - BATHTUB/SHOWER
-        - ELECTRIC/GAS RANGE
-        - GARBAGE/RECYCLING STORAGE
-        - CABINET
-        - TOILET
-        - OUTLET/SWITCH
-        - RADIATOR
-        - BELL/BUZZER/INTERCOM
-        - NO LIGHTING
-        - SMOKE DETECTOR
-        - REFRIGERATOR
-        - CARBON MONOXIDE DETECTOR
-        - POWER OUTAGE
-        - LIGHTING
-        - COOKING GAS
-        - DAMP SPOT
-        - WIRING
-        - DOOR FRAME
-        - WINDOW GUARD BROKEN/MISSING
-        - FIRE ESCAPE
-        - WINDOW PANE
-        - SEWAGE
-        - MAILBOX
-        - STAIRS
-        - VENTILATION SYSTEM
-        - STEAM PIPE/RISER
-        - JANITOR/SUPER
-        - WINDOW/FRAME
-        - ROOF DOOR/HATCH
-        - ROOFING
-        - SIGNAGE MISSING
-        - PAVEMENT
-        - DOOR/FRAME
-        - MAINTENANCE
-        - HEAT RELATED
-        - BOILER
-        - SKYLIGHT
-        - GUTTER/LEADER
-        - SEWER
-        - SPRINKLER
-        - PORCH/BALCONY
-        - DOOR TO DUMBWAITER
-        - WATER-LEAKS
-        - LOCKS
-        - VERMIN
-        - WINDOWS
-        - BELL-BUZZER/INTERCOM
-        - ELECTRIC-SUPPLY
-        - CERAMIC-TILE
-        - DOORS
-        - RUBBISH
-        - OUTLET COVER
-        - MICROWAVE
-        - ILLEGAL
-        - HEAT-PLANT
+
+<center>
+### Heat/hot water
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| ENTIRE BUILDING             | 22995 |
+| APARTMENT ONLY              | 17546 |
+
+
+### Unsanitary condition
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| PESTS                       | 12176 |
+| MOLD                        | 7017  |
+| GARBAGE/RECYCLING STORAGE   | 2413  |
+| SEWAGE                      | 561   |
+
+
+### Paint/plaster
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| WALL                        | 7662  |
+| CEILING                     | 6785  |
+| WINDOW/FRAME                | 232   |
+| RADIATOR                    | 183   |
+| DOOR/FRAME                  | 108   |
+| CABINET                     | 77    |
+
+
+### Plumbing
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| BASIN/SINK                  | 4441  |
+| WATER SUPPLY                | 2796  |
+| BATHTUB/SHOWER              | 2723  |
+| TOILET                      | 2245  |
+| RADIATOR                    | 1700  |
+| STEAM PIPE/RISER            | 278   |
+| BOILER                      | 68    |
+| SEWER                       | 45    |
+| WATER-LEAKS                 | 12    |
+
+
+### Door/Window
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| DOOR                        | 6075  |
+| WINDOW FRAME                | 3754  |
+| DOOR FRAME                  | 924   |
+| WINDOW PANE                 | 751   |
+| DOOR TO DUMBWAITER          | 20    |
+
+
+### Water leak
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| HEAVY FLOW                  | 4278  |
+| SLOW LEAK                   | 3637  |
+| DAMP SPOT                   | 1162  |
+
+
+### Electric
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| OUTLET/SWITCH               | 1956  |
+| NO LIGHTING                 | 1772  |
+| POWER OUTAGE                | 1562  |
+| LIGHTING                    | 1513  |
+| WIRING                      | 1020  |
+| BELL-BUZZER/INTERCOM        | 4     |
+| ELECTRIC-SUPPLY             | 4     |
+
+
+### General
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| CABINET                     | 2196  |
+| BELL/BUZZER/INTERCOM        | 1794  |
+| COOKING GAS                 | 1274  |
+| MAILBOX                     | 542   |
+| VENTILATION SYSTEM          | 427   |
+| JANITOR/SUPER               | 258   |
+| SIGNAGE MISSING             | 151   |
+| CERAMIC-TILE                | 3     |
+| DOORS                       | 3     |
+| FLOOR                       | 6     |
+| LOCKS                       | 7     |
+| MOLD                        | 2     |
+| STAIRS                      | 3     |
+| WINDOWS                     | 5     |
+
+
+### Flooring/stairs
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| FLOOR                       | 5981  |
+| STAIRS                      | 476   |
+
+
+### Safety
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| SMOKE DETECTOR              | 1668  |
+| CARBON MONOXIDE DETECTOR    | 1576  |
+| WINDOW GUARD BROKEN/MISSING | 889   |
+| FIRE ESCAPE                 | 830   |
+| SPRINKLER                   | 25    |
+| OUTLET COVER                | 2     |
+
+
+### Appliance
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| ELECTRIC/GAS RANGE          | 2618  |
+| REFRIGERATOR                | 1626  |
+
+
+### Outside building
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| ROOF DOOR/HATCH             | 203   |
+| ROOFING                     | 192   |
+| PAVEMENT                    | 122   |
+| SKYLIGHT                    | 59    |
+| GUTTER/LEADER               | 51    |
+| PORCH/BALCONY               | 21    |
+
+
+### Heating
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| HEAT RELATED                | 73    |
+| HEAT-PLANT                  | 1     |
+
+</center>
+
 - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
     - TBD
 - [Complaint Problems](#2-complaint-problems)
@@ -451,4 +514,4 @@ This section contains information of fields that share the same information or c
 - [Complaint Problems](#2-complaint-problems)
     - 02/36/2003 - 31/05/2021
 - [DOB Complaints Received](#3-dob-complaints-received)
-    - 01/01/2004 - 12/21/2020
+    - 01/03/1989 - 06/26/2021
