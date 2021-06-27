@@ -340,7 +340,7 @@ This section contains information of fields that share the same information or c
 - Brownsville.csv
     - 4653 unique buildings
 - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-    - 6797
+    - 6797 unique buildings
 - [Complaint Problems](#2-complaint-problems)
     - TBD
 - [DOB Complaints Received](#3-dob-complaints-received)
