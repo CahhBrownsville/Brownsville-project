@@ -3,14 +3,14 @@
 ## Sources 
 For the Brownsville project, we have proposed a set of data sources to explore and analyze, namely _311 Service Requests from 2010 to Present_, _Complain Problems_, and _DOB Complaints Received_. 
 
-Before comparing these datasets, we will look at a breif overview of each dataset and their variable descriptions. 
+Before comparing these datasets, we will look at a breif overview of each dataset and their Field descriptions. 
 
 ----------
 ### 1) 311 Service Requests from 2010 to Present
 - **Agency:** 311
 - **URL:** https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9
 - **Description:** All 311 Service Requests from 2010 to present. This information is automatically updated daily.
-- **Variable description:**
+- **Field descriptions:**
         - **Description:** Unique identifier of a Service Request (SR) in the open data set 
         - **Type:** `Plain Text`
     - **Created Date**
@@ -137,11 +137,11 @@ Before comparing these datasets, we will look at a breif overview of each datase
 `Note:` This data does not present a full picture of 311 calls or service requests, in part because of operational and system complexities associated with remote call taking necessitated by the unprecedented volume 311 is handling during the Covid-19 crisis. The City is working to address this issue.
 
 
-### Complaint Problems
+### 2) Complaint Problems
 - **Agency:** Department of Housing Preservation and Development (HPD)
 - **URL:** https://data.cityofnewyork.us/Housing-Development/Complaint-Problems/a2nx-4u46
 - **Description:** Contains information about problems associated with complaints.
-- **Variable descriptions:**
+- **Field descriptions:**
     - **ProblemID**
         - **Description:** Unique identifier of this problem
         - **Type:** `Number`
@@ -202,12 +202,12 @@ Before comparing these datasets, we will look at a breif overview of each datase
 - **Agency:** 	Department of Buildings (DOB)
 - **Description:** This is the universe of complaints received by Department of Buildings (DOB). It includes complaints that come from 311 or that are entered into the system by DOB staff.
 - **URL:** https://data.cityofnewyork.us/Housing-Development/DOB-Complaints-Received/eabe-havv
-- **Variable descriptions:**
+- **Field descriptions:**
     - **Complaint Number**
         - **Description:** Complaint number starting with 
 
         | Borough Code |    Borough    |
-        ---------------|---------------
+        |:------------:|:-------------:|
         |       1      |   Manhattan   |
         |       2      |     Bronx     |
         |       3      |   Brooklyn    |
@@ -257,27 +257,261 @@ Before comparing these datasets, we will look at a breif overview of each datase
     - **DOBRunDate**
         - **Description:** Date when query is run and pushed to Open Data. Could be used to differentiate report dates.
         - **Type:** `Date & Time`
+
+<br>
+
+<h3><center> Table containing all field names from the aforementioned datasets </center></h1>
+
+|311 Service Requests from 2010 to Present|Complaint Problems|DOB Complaints Received|
+|:-----------------------------------:|:--------------------:|:--------------------:|
+| Unique Key                          | ProblemID            | Complaint Number     |
+| Created Date                        | ComplaintID          | Status               |
+| Closed Date                         | UnitTypeID           | Date Entered         |
+| Agency                              | UnitType             | House Number         |
+| Agency Name                         | SpaceTypeID          | ZIP Code             |
+| Complaint Type                      | SpaceType            | House Street         |
+| Descriptor                          | TypeID               | BIN                  |
+| Location Type                       | Type                 | Community Board      |
+| Incident Zip                        | MajorCategoryID      | Special District     |       
+| Incident Address                    | MajorCategory        | Complaint Category   |         
+| Street Name                         | MinorCategoryID      | Unit                 |
+| Cross Street 1                      | MinorCategory        | Disposition Date     |   
+| Cross Street 2                      | CodeID               | Disposition Code     |
+| Intersection Street 1               | Code                 | Inspection Date      |  
+| Intersection Street 2               | StatusID             | DOBRunDate           | 
+| Address Type                        | Status               |                      | 
+| City                                | StatusDate           |                      |  
+| Landmark                            | StatusDescription    |                      | 
+| Facility Type                       |                      |                      |
+| Status                              |                      |                      |
+| Due Date                            |                      |                      |
+| Resolution Description              |                      |                      |
+| Resolution Action Updated Date      |                      |                      | 
+| Community Board                     |                      |                      |
+| BBL                                 |                      |                      |
+| Borough                             |                      |                      |
+| X Coordinate (State Plane)          |                      |                      |  
+| Y Coordinate (State Plane)          |                      |                      |  
+| Open Data Channel Type              |                      |                      |
+| Park Facility Name                  |                      |                      |
+| Park Borough                        |                      |                      | 
+| Vehicle Type                        |                      |                      | 
+| Taxi Company Borough                |                      |                      |
+| Taxi Pick Up Location               |                      |                      |
+| Bridge Highway Name                 |                      |                      |
+| Bridge Highway Direction            |                      |                      |   
+| Road Ramp                           |                      |                      | 
+| Bridge Highway Segment              |                      |                      |
+| Latitude                            |                      |                      | 
+| Longitude                           |                      |                      |
+| Location                            |                      |                      |
 ---
 ## Shared Fields
+This section contains information of fields that share the same information or could be potentially matched according to thier values. 
 
 1. Zip Code
     - Datasets: 
-        - [311 Service Requests](#311-service-requests-from-2010-to-present)
-            - Field name: `Incident Zip`
-        - [DOB Complaints Received](#dob-complaints-received)
-            - Field name: `ZIP Code`
+        - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+            - Field name(s): `Incident Zip`
+        - [DOB Complaints Received](#3-dob-complaints-received)
+            - Field name(s): `ZIP Code`
 2. Complaint category
-    - Datasets
-        - [Complaint Problems](#complaint-problems)
-            - Field name: `MajorCategory`, `MinorCategory`
-        - [DOB Complaints Received](#dob-complaints-received)
-            - Field name: `Complaint Category`
-    
+    - Datasets:
+        - [Complaint Problems](#2-complaint-problems)
+            - Field name(s): `MajorCategory`, `MinorCategory`
+        - [DOB Complaints Received](#3-dob-complaints-received)
+            - Field name(s): `Complaint Category`
+3. Address 
+    - Datasets:
+        - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+            - Field name(s): `Incident Address`, `Street Name`, `Cross Street 1`, `Cross Street 2`, `Intersection Street 1`, `Intersection Street 2`, `Address Type`, `X Coordinate (State Plane)`, `Y Coordinate (State Plane)`, `Latitude`, `Longitude`, `Location`
+        - [DOB Complaints Received](#3-dob-complaints-received)
+            - Field name(s): `House Street`, `House Number`
+4. Status and resolution
+    - Datasets:
+        - [311 Service Requests](#311-service-requests-from-2010-to-present)
+            - Field name(s): `Status`, `Resolution Description`
+        - [Complaint Problems](#2-complaint-problems)
+            - Field name(s): `Status`, `StatusDescription`
+        - [DOB Complaints Received](#3-dob-complaints-received)
+            - Field name(s): `Status`
 ---
 ## Building Coverage
-
+- Brownsville.csv
+    - 4653 unique buildings
+- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+    - 6797 unique buildings
+- [Complaint Problems](#2-complaint-problems)
+    - TBD
+- [DOB Complaints Received](#3-dob-complaints-received)
+    - 7978 unique buildings
+    
 ---
 ## Types of Complaints
+- Brownsville.csv
+
+<center>
+### Heat/hot water
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| ENTIRE BUILDING             | 22995 |
+| APARTMENT ONLY              | 17546 |
+
+
+### Unsanitary condition
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| PESTS                       | 12176 |
+| MOLD                        | 7017  |
+| GARBAGE/RECYCLING STORAGE   | 2413  |
+| SEWAGE                      | 561   |
+
+
+### Paint/plaster
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| WALL                        | 7662  |
+| CEILING                     | 6785  |
+| WINDOW/FRAME                | 232   |
+| RADIATOR                    | 183   |
+| DOOR/FRAME                  | 108   |
+| CABINET                     | 77    |
+
+
+### Plumbing
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| BASIN/SINK                  | 4441  |
+| WATER SUPPLY                | 2796  |
+| BATHTUB/SHOWER              | 2723  |
+| TOILET                      | 2245  |
+| RADIATOR                    | 1700  |
+| STEAM PIPE/RISER            | 278   |
+| BOILER                      | 68    |
+| SEWER                       | 45    |
+| WATER-LEAKS                 | 12    |
+
+
+### Door/Window
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| DOOR                        | 6075  |
+| WINDOW FRAME                | 3754  |
+| DOOR FRAME                  | 924   |
+| WINDOW PANE                 | 751   |
+| DOOR TO DUMBWAITER          | 20    |
+
+
+### Water leak
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| HEAVY FLOW                  | 4278  |
+| SLOW LEAK                   | 3637  |
+| DAMP SPOT                   | 1162  |
+
+
+### Electric
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| OUTLET/SWITCH               | 1956  |
+| NO LIGHTING                 | 1772  |
+| POWER OUTAGE                | 1562  |
+| LIGHTING                    | 1513  |
+| WIRING                      | 1020  |
+| BELL-BUZZER/INTERCOM        | 4     |
+| ELECTRIC-SUPPLY             | 4     |
+
+
+### General
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| CABINET                     | 2196  |
+| BELL/BUZZER/INTERCOM        | 1794  |
+| COOKING GAS                 | 1274  |
+| MAILBOX                     | 542   |
+| VENTILATION SYSTEM          | 427   |
+| JANITOR/SUPER               | 258   |
+| SIGNAGE MISSING             | 151   |
+| CERAMIC-TILE                | 3     |
+| DOORS                       | 3     |
+| FLOOR                       | 6     |
+| LOCKS                       | 7     |
+| MOLD                        | 2     |
+| STAIRS                      | 3     |
+| WINDOWS                     | 5     |
+
+
+### Flooring/stairs
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| FLOOR                       | 5981  |
+| STAIRS                      | 476   |
+
+
+### Safety
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| SMOKE DETECTOR              | 1668  |
+| CARBON MONOXIDE DETECTOR    | 1576  |
+| WINDOW GUARD BROKEN/MISSING | 889   |
+| FIRE ESCAPE                 | 830   |
+| SPRINKLER                   | 25    |
+| OUTLET COVER                | 2     |
+
+
+### Appliance
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| ELECTRIC/GAS RANGE          | 2618  |
+| REFRIGERATOR                | 1626  |
+
+
+### Outside building
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| ROOF DOOR/HATCH             | 203   |
+| ROOFING                     | 192   |
+| PAVEMENT                    | 122   |
+| SKYLIGHT                    | 59    |
+| GUTTER/LEADER               | 51    |
+| PORCH/BALCONY               | 21    |
+
+
+### Heating
+
+| Minor Category               | Number of reports |
+|-----------------------------|-------|
+| HEAT RELATED                | 73    |
+| HEAT-PLANT                  | 1     |
+
+</center>
+
+- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+    - TBD
+- [Complaint Problems](#2-complaint-problems)
+    - TBD
+- [DOB Complaints Received](#3-dob-complaints-received)
+    - TBD
 
 ---
 ## Date range
+- Brownsville.csv
+    - 12/03/2003 - 04/30/2021
+- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
+    - 01/01/2010 - 06/25/2021
+- [Complaint Problems](#2-complaint-problems)
+    - 02/36/2003 - 31/05/2021
+- [DOB Complaints Received](#3-dob-complaints-received)
+    - 01/03/1989 - 06/26/2021
