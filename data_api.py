@@ -1,15 +1,16 @@
 """
 TODO: 
-    - Create dataset iterator class
+    - Parse keyword arguments in the __get_results method
 """
 
-from numpy.lib.function_base import select
-import pandas as pd
-from sodapy import Socrata
+import os
+import pickle
+import textwrap
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, List, Union
-import textwrap
+
+import pandas as pd
+from sodapy import Socrata
 
 _DOMAIN = "data.cityofnewyork.us"
 
@@ -18,11 +19,15 @@ class DatasetMetaInformation:
 
     endpoint:str
     name:str
+    filename:str
     attribution:str
     category:str
     description:str
-    last_update:int
+    updated_on: datetime
+    cache_date: datetime
+    offset:int = 0
     loaded:bool = False
+    last_query:dict = None
 
     def __init__(self, client:Socrata, endpoint:str):
         """
@@ -39,27 +44,30 @@ class DatasetMetaInformation:
 
         self.endpoint = results["id"]
         self.name = results["name"]
+        self.filename = self.name.lower().replace(' ', '-') + '-raw.csv'
         self.attribution = results["attribution"]
         self.category = results["category"]
         self.description = results["description"]
-        self.last_update = datetime.fromtimestamp(results["rowsUpdatedAt"])
+        self.updated_on = datetime.fromtimestamp(results["rowsUpdatedAt"])
+        self.cache_date = datetime(1970, 12, 17)    # unix epoch time
 
     @property
     def information(self) -> str:
         """
         Returns a string containing the dataset's metadata
         """
-        if not self.loaded:
-            return ""
 
         wrapped_description  = textwrap.fill(self.description, width=80)
         description = textwrap.indent(wrapped_description, "\t\t")
         return f"{self.name}:"                                                + \
+                    f"\n\t- Filename: {self.filename}"                        + \
                     f"\n\t- Endpoint: {self.endpoint}"                        + \
                     f"\n\t- Description:\n{description}"                      + \
                     f"\n\t- Category: {self.category}"                        + \
                     f"\n\t- Attribution: {self.attribution}"                  + \
-                    f"\n\t- Data Last Updated: {self.last_update:%m-%d-%Y}"      
+                    f"\n\t- Dataset Updated on: {self.updated_on:%m-%d-%Y}"   + \
+                    f"\n\t- Cache date: {self.cache_date:%m-%d-%Y}"           + \
+                    f"\n\t- Number of records on cache: {self.offset}"   
 
 
 class Client(object):
@@ -73,7 +81,7 @@ class Client(object):
     def __init__(
         self, app_token:str="",
         username:str=None, password:str=None,
-        access_token:str=None, session_adapter:str=None,
+        data_path:str="./data/"
     ) -> None:
         
         # Initialize the Sodapy client
@@ -84,18 +92,22 @@ class Client(object):
                                         username=username, password=password,
                                         timeout=20)
 
-        # Fetch meta information from the proposed datasets
-        self._311_metadata = DatasetMetaInformation(self._client, "erm2-nwe9")
-        self._complaint_problems_metadata = DatasetMetaInformation(self._client, "a2nx-4u46")
-        self._dob_complaints_metadata = DatasetMetaInformation(self._client, "eabe-havv")
+        self._DATA_PATH = data_path
+        self.__load_metadata()
+
 
     @property
     def datasets_information(self) -> str:
-        # Concatenate all of the
-        s = "\n\n".join([self._311_metadata.information, 
-                        self._complaint_problems_metadata.information,
-                        self._dob_complaints_metadata.information])
+        """
+        Display information about the data sources. 
+        """
+
+        # Concatenate all of the metadata string
+        s = "\n\n".join([self.metadata_311.information, 
+                        self.metadata_complaint_problems.information,
+                        self.metadata_dob_complaints.information])
         return s
+
 
     def load_311(self, fetch_all:bool=False, **kwargs) -> pd.DataFrame:
         """
@@ -107,14 +119,11 @@ class Client(object):
             Flag indicating whether all records should be feteched.
         """
 
-        # Set the metadata loaded flag
-        if not self._311_metadata.loaded:
-            self._311_metadata.loaded = True
-
-        df = self.__get_results(self._311_metadata.endpoint,
+        df = self.__get_results(self.metadata_311,
                                     fetch_all=fetch_all, **kwargs)
         
         return df
+
 
     def load_complaint_problems(self, fetch_all:bool=False, **kwargs) -> pd.DataFrame:
         """
@@ -125,14 +134,12 @@ class Client(object):
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
         """
-        # Set the metadata loaded flag
-        if not self._complaint_problems_metadata.loaded:
-            self._complaint_problems_metadata.loaded = True
 
-        df = self.__get_results(self._complaint_problems_metadata.endpoint,
+        df = self.__get_results(self.metadata_complaint_problems,
                                     fetch_all=fetch_all, **kwargs)
         
         return df
+
 
     def load_dob_complaints(self, fetch_all:bool=False, **kwargs) -> pd.DataFrame:
         """
@@ -143,30 +150,130 @@ class Client(object):
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
         """
-        # Set the metadata loaded flag
-        if not self._dob_complaints_metadata.loaded:
-            self._dob_complaints_metadata.loaded = True
         
-        df = self.__get_results(self._dob_complaints_metadata.endpoint,
+        df = self.__get_results(self.metadata_dob_complaints,
                                     fetch_all=fetch_all, **kwargs)
         return df
 
+
     def __get_results(
-        self, endpoint:str,
+        self, metadata:DatasetMetaInformation,
         fetch_all:bool=False, **kwargs
     ) -> pd.DataFrame:
         """
+        Return a pandas dataframe containing all records from the specified endpoint. If a dataset is already 
+        cached, this method will return the stored information and update it if needed, else it will download and
+        return the dataset from the NYC OpenData servers.
 
+        Parameters
+        ----------
+        metadata: `DatasetMetaInfomation`
+            Object containing the metadata information for the desired dataset.
+        fetch_all: `bool`
+            Boolean flag indicating whether to return the whole dataset or just a subset.
         """
+        # Set the metadata loaded flag
+        if not metadata.loaded:
+            metadata.loaded = True
 
-        # Return a dataset containing all records from the specified endpoint
+        # Fetch all the records for the selected dataset
         if fetch_all:
-            results = self._client.get_all(endpoint, **kwargs)
+            
+            fetch_remote = True
+            # Verify that the queries for the current and previous requests are identical
+            if metadata.last_query == kwargs:
+
+                # Check if the datset is cached
+                if os.path.exists(self._DATA_PATH + metadata.filename):
+                    print("Loading cached dataset...")
+
+                    # Read the file stored in cache
+                    df = pd.read_csv(self._DATA_PATH + metadata.filename, index_col=0)   
+                    fetch_remote = False
+
+                    # Check if more rows have been added to the dataset
+                    if metadata.cache_date < metadata.updated_on:
+                        print("Updating records...")
+
+                        kwargs["offset"] = metadata.offset
+
+                        # Fetch the remaining records from the website
+                        results = self._client.get_all(metadata.endpoint, **kwargs)
+                        remote_df = pd.DataFrame.from_records(results)
+
+                        # Append the new rows to the old dataframe and update the metadata 
+                        df = df.append(remote_df)
+                
+            # Fetch the whole dataset from the NYC OpenData servers
+            if fetch_remote:
+                print("Downloading dataset...")
+                results = self._client.get_all(metadata.endpoint, **kwargs)
+                df = pd.DataFrame.from_records(results)
+                metadata.last_query = kwargs     
+
+            # Update the metadata for the desired dataset and store it
+            metadata.offset = df.shape[0]
+            metadata.cache_date = datetime.now()
+            df.to_csv(self._DATA_PATH + metadata.filename)
+
         else:
-            results = self._client.get(endpoint, **kwargs)
+            results = self._client.get(metadata.endpoint, **kwargs)
+            df = pd.DataFrame.from_records(results)
         
-        return pd.DataFrame.from_records(results)
+
+        return df
+
+
+    def __save_metadata(self) -> None:
+        """
+        Save the metadata information for each data source in a .pickle file.
+        """
+        objs = (self.metadata_311, self.metadata_complaint_problems, self.metadata_dob_complaints)
+        for obj in objs:
+            obj.loaded = False
+
+        with open("./metadata.pickle", "wb") as f:
+            pickle.dump(objs, f)
+
+
+    def __load_metadata(self) -> None:
+        """
+        Load the metadata information. If the pickle file exists, it loads the previous DatasetMetaInformation
+        state for each of the data sources, else it fetches the information from the NYC OpenData servers.
+        """
+        # Fetch meta information from the proposed datasets if not already stored
+        if not os.path.exists("./metadata.pickle"):
+            self.metadata_311 = DatasetMetaInformation(self._client, "erm2-nwe9")
+            self.metadata_complaint_problems = DatasetMetaInformation(self._client, "a2nx-4u46")
+            self.metadata_dob_complaints = DatasetMetaInformation(self._client, "eabe-havv")
+            return
+        
+        with open("./metadata.pickle", "rb") as f:
+            objs = pickle.load(f)
+            self.metadata_311 = objs[0]
+            self.metadata_complaint_problems = objs[1]
+            self.metadata_dob_complaints = objs[2]
+            
 
     def close(self):
+        """
+        Close the SodaPY Socrata client
+        """
+        self.__save_metadata()
         self._client.close()
+
+
+    def __enter__(self):
+        """
+        Open the context manager
+        """
+        return self
     
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        """
+        Close the context manager
+        """
+        return self.close()
+    
+        
