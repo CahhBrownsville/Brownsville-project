@@ -7,6 +7,9 @@ workspace.code-workspace
 # Pickle files
 *.pickle
 
+# Configuration file
+config.yaml
+
 # Data Sources reference files
 data/311_SR_Data_Dictionary_2018.xlsx
 data/major-minor_categories.csv
