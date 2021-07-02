@@ -3,6 +3,7 @@ __pycache__/*
 
 # VS Code workspace 
 workspace.code-workspace
+.vscode/settings.json
 
 # Pickle files
 *.pickle
