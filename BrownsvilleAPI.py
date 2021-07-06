@@ -8,20 +8,20 @@ import os
 
 
 class Brownsville:
-    def __init__(self, path="./data/brownsville/") -> None:
+    def __init__(self, path:str="./data/brownsville/", force_load:bool = False) -> None:
         self.path = path
 
         # Create the directory where the dataset will be stored
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-        self.__load_dataset()
+        self.__load_dataset(force_load)
         self.__translate_ids()
         self.__parse_datatypes()
         
     @property
     def buildings(self) -> set:
-        return set(self.data["buildingid"])
+        return self.data["buildingid"].unique()
 
     def records_by_season(self) -> set:
         date_counts = self.records_by_date(period="month")
@@ -141,7 +141,7 @@ class Brownsville:
         self.data["receiveddate"] = self.data["receiveddate"].astype("datetime64")
         self.data["statusdate"] = self.data["statusdate"].astype("datetime64")
 
-    def __load_dataset(self):
+    def __load_dataset(self, force_load:bool = False):
 
         config = self.__load_config()
         with Client(*config, data_path=self.path) as c:
@@ -153,13 +153,10 @@ class Brownsville:
                 < c.metadata_housing_maintenance.updated_on
             )
 
-            if not update_due and os.path.exists(
-                self.path + c.metadata_brownsville.filename
-            ):
+            filepath = os.path.join(self.path, c.metadata_brownsville.filename)
+            if not force_load and not update_due and os.path.exists(filepath):
                 print("Loading cached dataset...")
-                self.data = pd.read_csv(
-                    self.path + c.metadata_brownsville.filename, index_col=0
-                )
+                self.data = pd.read_csv(filepath, index_col=0)
             else:
                 self.data = c.load_brownsville(fetch_all=True)
 
