@@ -53,3 +53,10 @@ def get_feature_occurrences_by_building(
 
         common_categories = common_categories[:n]
     return common_categories
+
+def format_BBL(borough:str, block:str, lot:str) -> str:
+    borough = str(borough)
+    block = str(block).zfill(5)
+    lot = str(lot).zfill(4)
+    
+    return borough + block + lot
