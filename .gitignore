@@ -20,3 +20,6 @@ data/dob-complaints-received-raw.csv
 data/complaint-problems-raw.csv
 data/brownsville.csv
 data/311-service-requests-from-2010-to-present-raw.csv
+
+# Brownsville dataset path
+./data/brownsville/*
