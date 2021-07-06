@@ -14,6 +14,9 @@ from sodapy import Socrata
 
 _DOMAIN = "data.cityofnewyork.us"
 
+class UnknownDatasetException(Exception):
+    def __init__(self, msg:str = "Passed dataset not in list of valid dataset") -> None:
+        super().__init__(msg)
 
 @dataclass
 class DatasetMetaInformation:
@@ -21,16 +24,16 @@ class DatasetMetaInformation:
     endpoint: str
     name: str
     filename: str
-    attribution: str
-    category: str
-    description: str
     updated_on: datetime
     cache_date: datetime
+    attribution: str = ""
+    category: str = ""
+    description: str = ""
     offset: int = 0
     loaded: bool = False
     last_query: dict = None
 
-    def __init__(self, client: Socrata, endpoint: str):
+    def __init__(self, client: Socrata = None, endpoint: str = "", **kwargs):
         """
         Initialize the Datset Meta Infomation class according to the provided endpoint.
 
@@ -41,7 +44,10 @@ class DatasetMetaInformation:
         endpoint: `str`
             Endpoint used to fetch metadata.
         """
-        results = client.get_metadata(endpoint)
+        if client:
+            results = client.get_metadata(endpoint)
+        else:
+            results = kwargs
 
         self.endpoint = results["id"]
         self.name = results["name"]
@@ -107,7 +113,7 @@ class Client(object):
         self.__load_metadata()
 
     @property
-    def datasets_information(self) -> str:
+    def information(self) -> str:
         """
         Display information about the data sources.
         """
@@ -119,6 +125,7 @@ class Client(object):
                 self.metadata_complaint_problems.information,
                 self.metadata_housing_maintenance.information,
                 self.metadata_dob_complaints.information,
+                self.metadata_brownsville.information,
             ]
         )
         return s
@@ -188,8 +195,60 @@ class Client(object):
         )
         return df
 
+    def load_brownsville(self, fetch_all: bool = False) -> pd.DataFrame:
+        """
+        TODO: merge the housing maintenance and the complaint problems datasets
+        """
+        # if os.path.exists(self._DATA_PATH + self.metadata_brownsville.filename):
+        #     df = pd.read_csv(self.metadata_brownsville.filename)
+        #     return df
+
+        convert_dict = {
+            "complaintid" : "Int64",
+            "statusid" : "Int64",
+        }
+
+        df_housing_maintenance = self.load_housing_maintenance(
+            fetch_all=fetch_all,
+            where="zip='11212' OR zip='11233'"
+        )
+
+        # df_housing_maintenance = df_housing_maintenance.astype(convert_dict, errors="ignore")
+        min_date = min(df_housing_maintenance["statusdate"])
+
+        df_complaint_problems = self.load_complaint_problems(
+            fetch_all=fetch_all,
+            select="complaintid, unittypeid, spacetypeid, "
+                  +"typeid, majorcategoryid, minorcategoryid, codeid, "
+                  +"statusid, statusdate, statusdescription",
+            where=f"statusdate>='{min_date}'"
+        )
+
+        # df_complaint_problems = df_complaint_problems.astype(convert_dict, errors="ignore")
+        merge_columns = ["complaintid", "statusdate"]
+
+        df_brownsville = pd.merge(
+            df_housing_maintenance,
+            df_complaint_problems,
+            on=merge_columns,
+        )
+
+        
+
+        df_brownsville = df_brownsville[
+            ['complaintid', 'buildingid', 'boroughid', 'borough', 'housenumber',
+             'streetname', 'zip', 'block', 'lot', 'apartment', 'communityboard',
+             'receiveddate', 'status', 'unittypeid', 'spacetypeid',
+             'typeid', 'majorcategoryid', 'minorcategoryid', 'codeid', "statusdate",
+             'statusdescription']
+        ]
+
+        df_brownsville.to_csv(self._DATA_PATH + self.metadata_brownsville.filename)
+
+        return df_brownsville
+
     def __get_results(
-        self, metadata: DatasetMetaInformation, fetch_all: bool = False, **kwargs
+        self, metadata: DatasetMetaInformation, fetch_all: bool = False, load_local=True, **kwargs
     ) -> pd.DataFrame:
         """
         Return a pandas dataframe containing all records from the specified endpoint. If a dataset is already
@@ -214,8 +273,8 @@ class Client(object):
             # Verify that the queries for the current and previous requests are identical
             if metadata.last_query == kwargs:
 
-                # Check if the datset is cached
-                if os.path.exists(self._DATA_PATH + metadata.filename):
+                # Check if the datset is cached and the load_local flag is true
+                if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
                     print("Loading cached dataset...")
 
                     # Read the file stored in cache
@@ -262,9 +321,10 @@ class Client(object):
             self.metadata_complaint_problems,
             self.metadata_housing_maintenance,
             self.metadata_dob_complaints,
+            self.metadata_brownsville
         )
 
-        with open("./metadata.pickle", "wb") as f:
+        with open(self._DATA_PATH + "./metadata.pickle", "wb") as f:
             pickle.dump(objs, f)
 
     def __load_metadata(self) -> None:
@@ -273,7 +333,7 @@ class Client(object):
         state for each of the data sources, else it fetches the information from the NYC OpenData servers.
         """
         # Fetch meta information from the proposed datasets if not already stored
-        if not os.path.exists("./metadata.pickle"):
+        if not os.path.exists(self._DATA_PATH + "./metadata.pickle"):
             self.metadata_311 = DatasetMetaInformation(
                 self._client, "erm2-nwe9"
             )
@@ -286,18 +346,33 @@ class Client(object):
             self.metadata_dob_complaints = DatasetMetaInformation(
                 self._client, "eabe-havv"
             )
+
+            date_1 = self.metadata_housing_maintenance.updated_on.timestamp()
+            date_2 = self.metadata_complaint_problems.updated_on.timestamp()
+
+            self.metadata_brownsville = DatasetMetaInformation(
+                id="",
+                name="Brownsville complaints",
+                attribution="Team Survey-Fix",
+                category="Housing complaints",
+                description="Complaint reports on the Brownsville area",
+                rowsUpdatedAt=min(date_1, date_2) 
+            )
         else:
-            with open("./metadata.pickle", "rb") as f:
+            # Load the metadata information from storage
+            with open(self._DATA_PATH + "./metadata.pickle", "rb") as f:
                 objs = pickle.load(f)
                 self.metadata_311 = objs[0]
                 self.metadata_complaint_problems = objs[1]
-                self.metadata_housing_maintenance = [2]
+                self.metadata_housing_maintenance = objs[2]
                 self.metadata_dob_complaints = objs[3]
+                self.metadata_brownsville = objs[4]
 
         self.metadata_311.loaded = False
         self.metadata_complaint_problems.loaded = False
         self.metadata_housing_maintenance.loaded = False
         self.metadata_dob_complaints.loaded = False
+        self.metadata_brownsville.loaded = False
 
     def close(self):
         """
