@@ -11,15 +11,11 @@ workspace.code-workspace
 # Configuration file
 config.yaml
 
-# Data Sources reference files
-data/311_SR_Data_Dictionary_2018.xlsx
-data/major-minor_categories.csv
-major-minor_categories.pdf
-brownsville_analysis.ipynb
-data/dob-complaints-received-raw.csv
-data/complaint-problems-raw.csv
-data/brownsville.csv
-data/311-service-requests-from-2010-to-present-raw.csv
+# pdf files
+*.pdf
 
-# Brownsville dataset path
-./data/brownsville/*
+# data path
+data/*
+
+# Old analysis
+brownsville_analysis.ipynb
