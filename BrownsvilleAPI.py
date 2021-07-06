@@ -138,6 +138,12 @@ class Brownsville:
         return common_categories
 
     def __parse_datatypes(self):
+        self.data["unittypeid"] = self.data["unittypeid"].astype("Int64")
+        self.data["spacetypeid"] = self.data["spacetypeid"].astype("Int64")
+        self.data["typeid"] = self.data["typeid"].astype("Int64")
+        self.data["majorcategoryid"] = self.data["majorcategoryid"].astype("Int64")
+        self.data["minorcategoryid"] = self.data["minorcategoryid"].astype("Int64")
+        self.data["codeid"] = self.data["codeid"].astype("Int64")
         self.data["receiveddate"] = self.data["receiveddate"].astype("datetime64")
         self.data["statusdate"] = self.data["statusdate"].astype("datetime64")
 
