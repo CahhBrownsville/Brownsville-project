@@ -1,29 +1,60 @@
-from typing import List, Union
+"""
+TODO: 
+    - Update documentation
+    - Remove duplicate rows
+"""
+
+import json
+from typing import Any, List, Union, Tuple
+import numpy as np
 import pandas as pd
-from dataclasses import dataclass
 
 from data_api import Client
 import yaml
+
 import os
+from geocode import GeocodeClient
+
+
+class InvalidColumnNameError(Exception):
+    def __init__(self, msg: str = "Invalid column name passed") -> None:
+        super().__init__(msg)
 
 
 class Brownsville:
-    def __init__(self, path:str="./data/brownsville/", force_load:bool = False) -> None:
+    def __init__(
+        self, path: str = "./data/brownsville/", force_load: bool = False
+    ) -> None:
         self.path = path
 
         # Create the directory where the dataset will be stored
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
+        self.config = self.__load_config()
+        # print(self.config)
+        self.geocode_client = GeocodeClient(self.config["geocode"]["app_token"])
+
         self.__load_dataset(force_load)
         self.__translate_ids()
         self.__parse_datatypes()
-        
+        self.__set_addresses()
+
+        self.__get_spatial_information()
+
     @property
-    def buildings(self) -> set:
+    def buildings(self) -> np.ndarray:
         return self.data["buildingid"].unique()
 
-    def records_by_season(self) -> set:
+    def get_date_range(self, by: str = "status") -> Tuple[pd.Timestamp, pd.Timestamp]:
+        if by not in ("status", "received"):
+            raise InvalidColumnNameError()
+
+        by += "date"
+
+        return self.data[by].min(), self.data[by].max()
+
+    def records_by_season(self) -> Tuple[List, List]:
         date_counts = self.records_by_date(period="month")
 
         seasons = ["Winter", "Spring", "Summer", "Autumn"]
@@ -31,7 +62,7 @@ class Brownsville:
             date_counts.loc[["Jan", "Feb", "Mar"]].sum(),
             date_counts.loc[["Apr", "May", "Jun"]].sum(),
             date_counts.loc[["Jul", "Aug", "Sep"]].sum(),
-            date_counts.loc[["Oct", "Nov", "Dec"]].sum()
+            date_counts.loc[["Oct", "Nov", "Dec"]].sum(),
         ]
         print(f"{seasons[0]}: {values[0]}")
         print(f"{seasons[1]}: {values[1]}")
@@ -40,7 +71,9 @@ class Brownsville:
 
         return seasons, values
 
-    def records_by_date(self, period:int="month", step:int=1, num_years:int=0) -> set:
+    def records_by_date(
+        self, period: int = "month", step: int = 1, num_years: int = 0
+    ) -> set:
         """
         TODO: FIX TIME PERIODS
         """
@@ -49,10 +82,22 @@ class Brownsville:
             date_counts = dates.value_counts()
             date_counts = date_counts.sort_index()
 
-            date_counts.index = pd.Index([
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-            ])
+            date_counts.index = pd.Index(
+                [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ]
+            )
 
         if period == "year":
             dates = self.data["statusdate"].dt.year.astype("Int64")
@@ -62,13 +107,12 @@ class Brownsville:
 
             if num_years > len(date_counts):
                 raise "The number of years must be less than the number of available years in the dataset"
-                return
 
-            if num_years > step >= 0: 
+            if num_years > step >= 0:
                 date_counts = date_counts.sort_index(ascending=False)
 
                 years = []
-                
+
                 for i in range(0, num_years, step):
                     start = i
                     end = start + step
@@ -82,7 +126,6 @@ class Brownsville:
                 return list(reversed(years))
 
         return date_counts
-
 
     def get_feature_occurrences_by_building(
         self,
@@ -121,7 +164,6 @@ class Brownsville:
         if isinstance(by, str):
             by = [by]
 
-
         # Filter the feature by BuildingID
         df_filter = self.data["buildingid"] == building_id
         common_categories = self.data[df_filter][by].value_counts()
@@ -137,7 +179,124 @@ class Brownsville:
             common_categories = common_categories[:n]
         return common_categories
 
-    def __parse_datatypes(self):
+    def get_feature_occurrences_by_key(
+        self,
+        keys: Union[List[str], str],
+        values: List[Any],
+        features: Union[List[str], str],
+        find_all: bool = False,
+        n: int = 10,
+        warning: bool = False,
+    ) -> pd.Series:
+        """
+        Returns a list of the most common features provided in the brownsville.csv dataset.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            Building ID to filter the results.
+        features: `[str] | str`
+            Column name or list of column names to filter the building complaints records by.
+        find_all: `bool`
+            Flag indicating whether to return all results for the provided feaures. Default False.
+        n: `int`
+            Number of maximum records to be returned by building. Default 10.
+        warning: `bool`
+            Set to `True` to display warning messages. Default False.
+        """
+
+        # No maximum record limit is set and the find_all flag is set to false
+        if n < 1 and not find_all:
+            raise "n must greater than or equal to 1."
+
+        # No column name(s) were provided
+        if not features:
+            raise "You must specify a feature name."
+
+        # If column name is a string, convert to a list of strings for convenience
+        if isinstance(keys, str):
+            keys = [keys]
+
+        if isinstance(values, str):
+            values = [values]
+
+        if isinstance(features, str):
+            features = [features]
+
+        if len(keys) != len(values):
+            raise "Keys and Values should have the same number of elements."
+
+        # Filter the feature by BuildingID
+        filters = None
+        for key, value in zip(keys, values):
+            if filters is None:
+                filters = self.data[key] == value
+            else:
+                filters &= self.data[key] == value
+
+        common_categories = self.data[filters][features].value_counts()
+
+        if not find_all:
+            # Limit the size of the common_categories series to n.
+            # If n exceeds the size of common_categories, change n to be this szie.
+            if n > len(common_categories):
+                n = len(common_categories)
+                if warning:
+                    print("n exceeds number of categories. Changing n to", n)
+
+            common_categories = common_categories[:n]
+        return common_categories
+
+    def save(self, filename: str = None, force_save: bool = False) -> None:
+        if not filename:
+            filename = self.path + "brownsville.csv"
+
+        if os.path.exists(filename):
+            if not force_save:
+                inp = input("File already exists. Type y/Y to overwrite: ")
+                if inp.lower() != "y":
+                    return
+
+        self.data.to_csv(filename)
+
+    def __get_spatial_information(self) -> None:
+        state = "NY"
+        columns = ["address", "borough", "zip"]
+
+        # Read the translation table from local storage if exists
+        filename = self.path + "address_table.json"
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
+                address_to_coord = json.load(f)
+        else:
+            unique_addresses = self.data[columns].groupby(columns).size()
+            address_to_coord = {}
+            for street, city, zip_code in unique_addresses.index:
+                address = " ".join((street, city, str(zip_code)))
+                coord = self.geocode_client.get_lat_lng(street, city, state, zip_code)
+                address_to_coord[address] = coord
+
+            with open(filename, "w") as f:
+                address_to_coord = json.dump(address_to_coord, f)
+
+        num_of_addresses = self.data.shape[0]
+        latitudes = np.zeros(num_of_addresses)
+        longitudes = np.zeros(num_of_addresses)
+        for i, value in enumerate(self.data[columns].iterrows()):
+
+            street, city, zip_code = value[1]
+            address = " ".join((street, city, str(zip_code)))
+            lat, lng = address_to_coord[address]
+            latitudes[i] = lat
+            longitudes[i] = lng
+
+        self.data["latitude"] = latitudes
+        self.data["longitude"] = longitudes
+
+    def __set_addresses(self) -> None:
+        self.data["address"] = self.data["housenumber"] + " " + self.data["streetname"]
+
+    def __parse_datatypes(self) -> None:
         self.data["unittypeid"] = self.data["unittypeid"].astype("Int64")
         self.data["spacetypeid"] = self.data["spacetypeid"].astype("Int64")
         self.data["typeid"] = self.data["typeid"].astype("Int64")
@@ -147,10 +306,9 @@ class Brownsville:
         self.data["receiveddate"] = self.data["receiveddate"].astype("datetime64")
         self.data["statusdate"] = self.data["statusdate"].astype("datetime64")
 
-    def __load_dataset(self, force_load:bool = False):
+    def __load_dataset(self, force_load: bool = False) -> None:
 
-        config = self.__load_config()
-        with Client(*config, data_path=self.path) as c:
+        with Client(*self.config["sodapy"].values(), data_path=self.path) as c:
 
             update_due = (
                 c.metadata_complaint_problems.cache_date
@@ -166,25 +324,39 @@ class Brownsville:
             else:
                 self.data = c.load_brownsville(fetch_all=True)
 
-    def __translate_ids(self):
+    def __translate_ids(self) -> None:
         with open("./brownsville_translations.yaml", "r") as f:
             translations = yaml.load(f, Loader=yaml.FullLoader)
             for key in translations:
                 value = translations[key]
                 self.data[key] = self.data[key + "id"].map(value)
 
-    def __load_config(self):
+    def __load_config(self) -> None:
         try:
             # Load the configuration files with all the credentials for the Socrata API
             with open("./config.yaml", "r") as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
                 # app_token, username, password = config["sodapy"].values()
 
-                if "sodapy" in config:
-                    app_token, username, password = config["sodapy"].values()
-                    return app_token, username, password
+                # if "sodapy" in config:
+                #     app_token, username, password = config["sodapy"].values()
+                #     return app_token, username, password
+
+                return config
         except FileNotFoundError:
             print(
                 "Configuration file not found. Loading client with default arguments."
             )
             return ()
+
+
+# if __name__ == "__main__":
+#     b = Brownsville()
+#     by_address = b.get_feature_occurrences_by_key(
+#         keys=["streetname", "apartment"],
+#         values=["PACIFIC STREET", "1"],
+#         features=["majorcategory"],
+#         n=5,
+#     )
+
+#     print(by_address)
