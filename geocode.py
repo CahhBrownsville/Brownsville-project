@@ -18,20 +18,36 @@ class GeocodeClient:
 
 
     def get_lat_lng(self, street_address:str, city:str, state:str, zip_code:int) -> Tuple[float, float]:
+        """
+        Makes a geocode API call to fetch the coordinates of the specified address.
+
+        Paramters:
+        ----------
+        street_address: `str`
+            Street name to search the coordinates.
+        city: `str`
+            City name to search the coordinates.
+        state: `str`
+            State name to search the coordinates.
+        zip_code: `int`
+            Zip code to search the coordinates.
+        """
         url = self.parse_query(
             key=self.__token,
             location=[street_address, city, state, zip_code]
         )
 
-        # url = f"{BASE_URL}?key={TOKEN}&location={}" 
         response = requests.get(url)
-
+        
         results = json.loads(response.content)["results"][0]["locations"][0]
         lat, lng = results["latLng"].values()
 
         return lat, lng
 
     def parse_query(self, **kwargs) -> str:
+        """
+        Parses the query arguments to construct a valid API call
+        """
         q = []
         for key in kwargs:
 
