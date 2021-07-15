@@ -334,7 +334,8 @@ class Brownsville:
             popup.add_to(markerCluster)
 
         if save_map:
-            nyc_map.save(outfile="brownsville.html")
+            filename = os.path.join(self.path, "brownsville.html")
+            nyc_map.save(outfile=filename)
 
         return nyc_map
 
