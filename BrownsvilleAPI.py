@@ -327,11 +327,11 @@ class Brownsville:
         # Add the markers to the map
         for address, latitude, longitude in unique_addresses.index:
 
-            marker = folium.Marker(location=[latitude, longitude])
+            marker = folium.Marker(location=[latitude, longitude], popup=address)
             popup = folium.Popup(address, parse_html=True)
 
+            popup.add_to(marker)
             marker.add_to(markerCluster)
-            popup.add_to(markerCluster)
 
         if save_map:
             filename = os.path.join(self.path, "brownsville.html")
