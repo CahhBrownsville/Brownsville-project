@@ -5,14 +5,16 @@ TODO:
 """
 
 import json
-from typing import Any, List, Union, Tuple
+import os
+from typing import Any, List, Tuple, Union
+
+import folium
+import folium.plugins
 import numpy as np
 import pandas as pd
-
-from data_api import Client
 import yaml
 
-import os
+from data_api import Client
 from geocode import GeocodeClient
 
 
@@ -44,9 +46,21 @@ class Brownsville:
 
     @property
     def buildings(self) -> np.ndarray:
+        """
+        Returns an NumPy ndarray with the set of unique buildings in the dataset by building id.
+        """
         return self.data["buildingid"].unique()
 
     def get_date_range(self, by: str = "status") -> Tuple[pd.Timestamp, pd.Timestamp]:
+        """
+        Return the date range for the complaint since the day it was marked as complete or
+        since the day it was received.
+
+        Parameters:
+        -----------
+        by: `str`
+            Feature to get the data range by.
+        """
         if by not in ("status", "received"):
             raise InvalidColumnNameError()
 
@@ -55,6 +69,9 @@ class Brownsville:
         return self.data[by].min(), self.data[by].max()
 
     def records_by_season(self) -> Tuple[List, List]:
+        """
+        Return the number of complaints reported by season.
+        """
         date_counts = self.records_by_date(period="month")
 
         seasons = ["Winter", "Spring", "Summer", "Autumn"]
@@ -72,9 +89,20 @@ class Brownsville:
         return seasons, values
 
     def records_by_date(
-        self, period: int = "month", step: int = 1, num_years: int = 0
+        self, period: str = "month", step: int = 1, num_years: int = 0
     ) -> set:
         """
+        Return the number of complaints reported on a monthly or yearly basis.
+
+        Parameters:
+        -----------
+        period: `str`
+            Type of time period to return the number of complaint reported.
+        step: `int`
+            Number of year intervals to separate the data. *Only works if period is `year`*
+        num_years `int`
+            Number of past years to query the data. *Only works if period is `year`*
+
         TODO: FIX TIME PERIODS
         """
         if period == "month":
@@ -193,8 +221,10 @@ class Brownsville:
 
         Parameters:
         -----------
-        building_id: `int`
+        keys: `List[str] | str`
             Building ID to filter the results.
+        values: `List[Any]`
+            Values to filter the keys by.
         features: `[str] | str`
             Column name or list of column names to filter the building complaints records by.
         find_all: `bool`
@@ -247,19 +277,72 @@ class Brownsville:
             common_categories = common_categories[:n]
         return common_categories
 
-    def save(self, filename: str = None, force_save: bool = False) -> None:
+    def save(self, filename: str = None, overwrite_file: bool = False) -> None:
+        """
+        Saves the current state of the dataset as a `.csv` file at the path specified during
+        class instantiation.
+
+        Parameters:
+        -----------
+        filename: `str`
+            Name for the file being stored.
+        force_save: `bool`
+            Flag indicating whether the file should be overwritten or not.
+        """
         if not filename:
             filename = self.path + "brownsville.csv"
 
         if os.path.exists(filename):
-            if not force_save:
+            if not overwrite_file:
                 inp = input("File already exists. Type y/Y to overwrite: ")
                 if inp.lower() != "y":
                     return
 
         self.data.to_csv(filename)
 
+    def display_map(self, save_map: bool = False) -> folium.Map:
+        """
+        Returns a folium map with information about all the buildings. 
+
+        Parameters:
+        -----------
+        save_map: `bool`
+            Save the map to an `.html` file.
+        """
+        
+        nyc_longitude, nyc_latitude = 40.68424658435642, -73.91630313916588
+
+        nyc_map: folium.Map = folium.Map(
+            location=[nyc_longitude, nyc_latitude],
+            tooltip="Click for building information",
+            tiles="OpenStreetMap",
+            zoom_start=12,
+        )
+
+        columns = ["address", "latitude", "longitude"]
+        unique_addresses = self.data[columns].groupby(columns).size()
+
+        markerCluster = folium.plugins.MarkerCluster().add_to(nyc_map)
+
+        # Add the markers to the map
+        for address, latitude, longitude in unique_addresses.index:
+
+            marker = folium.Marker(location=[latitude, longitude])
+            popup = folium.Popup(address, parse_html=True)
+
+            marker.add_to(markerCluster)
+            popup.add_to(markerCluster)
+
+        if save_map:
+            nyc_map.save(outfile="brownsville.html")
+
+        return nyc_map
+
     def __get_spatial_information(self) -> None:
+        """
+        Uses the geocode custom API to fetch spatial information about 
+        the building (latitude and longitude).
+        """
         state = "NY"
         columns = ["address", "borough", "zip"]
 
@@ -282,11 +365,14 @@ class Brownsville:
         num_of_addresses = self.data.shape[0]
         latitudes = np.zeros(num_of_addresses)
         longitudes = np.zeros(num_of_addresses)
+
         for i, value in enumerate(self.data[columns].iterrows()):
 
             street, city, zip_code = value[1]
             address = " ".join((street, city, str(zip_code)))
             lat, lng = address_to_coord[address]
+            # print(lat, lng)
+
             latitudes[i] = lat
             longitudes[i] = lng
 
@@ -294,9 +380,15 @@ class Brownsville:
         self.data["longitude"] = longitudes
 
     def __set_addresses(self) -> None:
+        """
+        Concatenates the house number and street name into a single columns.
+        """
         self.data["address"] = self.data["housenumber"] + " " + self.data["streetname"]
 
     def __parse_datatypes(self) -> None:
+        """
+        Parses the dataset features to their appropiate datatypes.
+        """
         self.data["unittypeid"] = self.data["unittypeid"].astype("Int64")
         self.data["spacetypeid"] = self.data["spacetypeid"].astype("Int64")
         self.data["typeid"] = self.data["typeid"].astype("Int64")
@@ -307,6 +399,9 @@ class Brownsville:
         self.data["statusdate"] = self.data["statusdate"].astype("datetime64")
 
     def __load_dataset(self, force_load: bool = False) -> None:
+        """
+        Uses the Scoracte API custom client to create the Bronwsville dataset.
+        """
 
         with Client(*self.config["sodapy"].values(), data_path=self.path) as c:
 
@@ -325,6 +420,9 @@ class Brownsville:
                 self.data = c.load_brownsville(fetch_all=True)
 
     def __translate_ids(self) -> None:
+        """
+        Translate the feature id (i.e., majorcategoryid) to their corresponding value.
+        """
         with open("./brownsville_translations.yaml", "r") as f:
             translations = yaml.load(f, Loader=yaml.FullLoader)
             for key in translations:
@@ -332,6 +430,9 @@ class Brownsville:
                 self.data[key] = self.data[key + "id"].map(value)
 
     def __load_config(self) -> None:
+        """
+        Load the configuration file necessary for the API's 
+        """
         try:
             # Load the configuration files with all the credentials for the Socrata API
             with open("./config.yaml", "r") as f:
