@@ -3,6 +3,7 @@ import os
 from re import sub
 from typing import Any, List, Tuple, Union
 
+from branca.element import CssLink
 import folium
 import folium.plugins
 import numpy as np
@@ -63,7 +64,7 @@ class Brownsville:
         df = pd.DataFrame({"buildingid": self.buildings, "complaints": complaints})
 
         return df
-        
+
     def get_date_range(self, by: str = "status") -> Tuple[pd.Timestamp, pd.Timestamp]:
         """
         Return the date range for the complaint since the day it was marked as complete or
@@ -303,7 +304,22 @@ class Brownsville:
             building_id, by=["majorcategory", "minorcategory"], find_all=True
         )
 
-        return common_complaints.values.sum()
+        return int(common_complaints.values.sum())
+
+    def get_common_complaint_categories(self, building_id: int) -> int:
+        """
+        Get the most common major and minor complaint category
+
+        Parameters:
+        -----------
+        building_id: `int`
+            ID of the building in the dataset.
+        """
+        common_complaints = self.get_feature_occurrences_by_building(
+            building_id, by=["majorcategory", "minorcategory"], find_all=True
+        )
+
+        return common_complaints.index[0]
 
     def save(self, filename: str = None, overwrite_file: bool = False) -> None:
         """
@@ -347,35 +363,92 @@ class Brownsville:
             zoom_start=12,
         )
 
-        columns = ["address", "latitude", "longitude"]
+        columns = ["buildingid", "address", "latitude", "longitude"]
         unique_addresses = self.data[columns].groupby(columns).size()
 
-        markerCluster = folium.plugins.MarkerCluster().add_to(nyc_map)
-
-        number_of_reports = 0
-        icon_create_function = f"""\
-        function(cluster) {{
-            return L.divIcon({{
-            html: '<b>' + {number_of_reports} + '</b>',
-            className: 'marker-cluster marker-cluster-large',
-            iconSize: new L.Point(20, 20)
-            }});
-        }}"""
-
-        # Add the markers to the map
-        for address, latitude, longitude in unique_addresses.index:
-
-            marker = folium.Marker(location=[latitude, longitude], popup=address)
-            popup = folium.Popup(address, parse_html=True)
-
-            popup.add_to(marker)
-            marker.add_to(markerCluster)
-
+        self.__create_marker_cluster(nyc_map, unique_addresses)
+        
+        # Save the map to an HTML file
         if save_map:
             filename = os.path.join(self.path, "brownsville.html")
             nyc_map.save(outfile=filename)
 
         return nyc_map
+
+    def __create_marker_cluster(
+        self, folium_map: folium.Map, df: pd.DataFrame
+    ) -> folium.plugins.MarkerCluster:
+        """
+        Accepts a Folium map in which custom leaflet marker cluster are added.
+
+        Parameters:
+        -----------
+        folium_map: `folium_map`
+            Map where the marker cluster will be added.
+        df: `pd.DataFrame`
+            Pandas DataFrame used as reference for the marker clusters.
+        """
+        
+        icon_create_function = ""
+        with open("./static/js/iconCreateFunction.js", "r") as f:
+            icon_create_function = f.read()
+
+        # Import the map marker style
+        folium_map.get_root().header.add_child(CssLink('./assets/css/foliumStyle.css'))
+
+        # Create and add the marker cluster to the folium map
+        markerCluster = folium.plugins.MarkerCluster(
+            icon_create_function=icon_create_function
+        ).add_to(folium_map)
+        
+        for building_id, address, latitude, longitude in df.index:
+
+            number_of_reports = self.complaint_number(building_id)
+            major_category, minor_category = self.get_common_complaint_categories(building_id)
+            
+            iframe = folium.IFrame(
+                html=f"""
+                    <b>{address}</b>
+                    <br>
+                    <br>
+                    <b>Number of reports:</b> {number_of_reports}
+                    <br>
+                    <b>Building ID:</b> {building_id}
+                    <br>
+                    <b>Latitude:</b> {latitude}
+                    <br>
+                    <b>Longitude:</b> {longitude}
+                    <br>
+                    <b>Most common major category:</b> {major_category}
+                    <br>
+                    <b>Most common minor category:</b> {minor_category}
+
+                    <style>
+                        html * {{
+                            font-size: 1em !important;
+                            color: #000 !important;
+                            font-family: Arial !important;
+                        }}
+                    </style>
+                """
+            )
+
+            popup = folium.Popup(
+                iframe,
+                min_width=350,
+                max_width=350, 
+                parse_html=True
+            )
+
+            marker = folium.Marker(
+                location=[latitude, longitude],
+                popup=address,
+                icon_create_function=icon_create_function,
+                reports=number_of_reports
+            )
+
+            popup.add_to(marker)
+            marker.add_to(markerCluster)
 
     def __filter_no_complaints(self) -> None:
         """
