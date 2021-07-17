@@ -1,11 +1,6 @@
-"""
-TODO: 
-    - Update documentation
-    - Remove duplicate rows
-"""
-
 import json
 import os
+from re import sub
 from typing import Any, List, Tuple, Union
 
 import folium
@@ -44,6 +39,8 @@ class Brownsville:
 
         self.__get_spatial_information()
 
+        self.__filter_no_complaints()
+
     @property
     def buildings(self) -> np.ndarray:
         """
@@ -51,6 +48,22 @@ class Brownsville:
         """
         return self.data["buildingid"].unique()
 
+    @property
+    def complaints(self):
+        """
+        Returns a Pandas DataFrame with building_id's and their respective
+        number of complaints reported.
+        """
+
+        complaints = np.zeros(len(self.buildings))
+        for i, building_id in enumerate(self.buildings):
+            num_of_complaints = self.complaint_number(building_id)
+            complaints[i] = num_of_complaints
+
+        df = pd.DataFrame({"buildingid": self.buildings, "complaints": complaints})
+
+        return df
+        
     def get_date_range(self, by: str = "status") -> Tuple[pd.Timestamp, pd.Timestamp]:
         """
         Return the date range for the complaint since the day it was marked as complete or
@@ -277,6 +290,21 @@ class Brownsville:
             common_categories = common_categories[:n]
         return common_categories
 
+    def complaint_number(self, building_id: int) -> int:
+        """
+        Get the number of complaints reported for the specified building.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            ID of the building in the dataset.
+        """
+        common_complaints = self.get_feature_occurrences_by_building(
+            building_id, by=["majorcategory", "minorcategory"], find_all=True
+        )
+
+        return common_complaints.values.sum()
+
     def save(self, filename: str = None, overwrite_file: bool = False) -> None:
         """
         Saves the current state of the dataset as a `.csv` file at the path specified during
@@ -302,14 +330,14 @@ class Brownsville:
 
     def display_map(self, save_map: bool = False) -> folium.Map:
         """
-        Returns a folium map with information about all the buildings. 
+        Returns a folium map with information about all the buildings.
 
         Parameters:
         -----------
         save_map: `bool`
             Save the map to an `.html` file.
         """
-        
+
         nyc_longitude, nyc_latitude = 40.68424658435642, -73.91630313916588
 
         nyc_map: folium.Map = folium.Map(
@@ -323,6 +351,16 @@ class Brownsville:
         unique_addresses = self.data[columns].groupby(columns).size()
 
         markerCluster = folium.plugins.MarkerCluster().add_to(nyc_map)
+
+        number_of_reports = 0
+        icon_create_function = f"""\
+        function(cluster) {{
+            return L.divIcon({{
+            html: '<b>' + {number_of_reports} + '</b>',
+            className: 'marker-cluster marker-cluster-large',
+            iconSize: new L.Point(20, 20)
+            }});
+        }}"""
 
         # Add the markers to the map
         for address, latitude, longitude in unique_addresses.index:
@@ -339,9 +377,19 @@ class Brownsville:
 
         return nyc_map
 
+    def __filter_no_complaints(self) -> None:
+        """
+        Remove buildings from the dataset that do not have a major or minor
+        complaint category defined.
+        """
+        no_complaints_filter = (self.data["majorcategoryid"].isna()) & (
+            self.data["minorcategoryid"].isna()
+        )
+        self.data = self.data[~(no_complaints_filter)]
+
     def __get_spatial_information(self) -> None:
         """
-        Uses the geocode custom API to fetch spatial information about 
+        Uses the geocode custom API to fetch spatial information about
         the building (latitude and longitude).
         """
         state = "NY"
@@ -432,7 +480,7 @@ class Brownsville:
 
     def __load_config(self) -> None:
         """
-        Load the configuration file necessary for the API's 
+        Load the configuration file necessary for the API's
         """
         try:
             # Load the configuration files with all the credentials for the Socrata API
@@ -452,8 +500,12 @@ class Brownsville:
             return ()
 
 
-# if __name__ == "__main__":
-#     b = Brownsville()
+if __name__ == "__main__":
+    b = Brownsville()
+    # b.filter_no_complaints()
+    print(b.buildings.shape)
+    print(b.complaint_number(311915))
+    # print(b.complaints)
 #     by_address = b.get_feature_occurrences_by_key(
 #         keys=["streetname", "apartment"],
 #         values=["PACIFIC STREET", "1"],
