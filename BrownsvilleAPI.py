@@ -41,7 +41,6 @@ class Brownsville:
         # self.__filter_no_complaints()
 
         self._map = self.__update_map()
-        
 
     @property
     def buildings(self) -> np.ndarray:
@@ -368,54 +367,42 @@ class Brownsville:
             zoom_start=12,
         )
 
-
         columns = ["buildingid", "address", "latitude", "longitude"]
         unique_addresses = self.data[columns].groupby(columns).size()
 
         # Import the map marker style
         nyc_map.get_root().header.add_child(CssLink("./assets/css/foliumStyle.css"))
 
-
         self.__create_marker_cluster(unique_addresses).add_to(nyc_map)
 
+        # Get the coordinates for each building
         lats = self.data["latitude"].values
         lons = self.data["longitude"].values
-        
+
+        # Calculate and 0-1 normalize heatmap weights 
         complaints_per_building = self.complaints
         weight_f = lambda b_id: complaints_per_building[b_id]
-        # buildings = unique_addresses.index.get_level_values(0).to_series()
-        # weights = buildings.apply(weight_f).values
         weights = self.data["buildingid"].apply(weight_f).values
-        weights = (weights-min(weights))/(max(weights)-min(weights))
-        
-        # print(type(lats), type(lons), type(weights))
-        # print(lats.dtype, lons.dtype, weights.dtype)
-        # print(lats.shape, lons.shape, weights.shape)
-        # data = [(float(lat), float(lon), float(w)) for lat, lon, w in zip(lats, lons, weights)]
+        weights = (weights - min(weights)) / (max(weights) - min(weights))
+
         folium.plugins.HeatMap(
             data=list(zip(lats, lons, weights)),
             # data=data,
             name="Brownsville heat map",
             min_opacity=0.3,
-            max_opacity=0.7
-
+            max_opacity=0.7,
         ).add_to(nyc_map)
 
         folium.LayerControl().add_to(nyc_map)
-
-        # print(type(nyc_map))
 
         # Save the map to an HTML file
         if save_map:
             filename = os.path.join(self.path, "brownsville.html")
             nyc_map.save(outfile=filename)
-            # nyc_map.save(outfile=filename)
 
         return nyc_map
 
-    def __create_marker_cluster(
-        self, df: pd.DataFrame
-    ) -> folium.plugins.MarkerCluster:
+    def __create_marker_cluster(self, df: pd.DataFrame) -> folium.plugins.MarkerCluster:
         """
         Accepts a Folium map in which custom leaflet marker cluster are added.
 
@@ -430,12 +417,9 @@ class Brownsville:
         with open("./static/js/iconCreateFunction.js", "r") as f:
             icon_create_function = f.read()
 
-        
-
         # Create and add the marker cluster to the folium map
         marker_cluster = folium.plugins.MarkerCluster(
-            name="Address locations", 
-            icon_create_function=icon_create_function
+            name="Address locations", icon_create_function=icon_create_function
         )
 
         for building_id, address, latitude, longitude in df.index:
@@ -487,9 +471,9 @@ class Brownsville:
 
     def __update_map(self):
         """
-        Helper function to update map when instantiating the class. 
+        Helper function to update map when instantiating the class.
         """
-        self.display_map(save_map = True)
+        self.display_map(save_map=True)
 
     def __filter_no_complaints(self) -> None:
         """
@@ -570,7 +554,8 @@ class Brownsville:
             update_due = (
                 c.metadata_complaint_problems.cache_date
                 < c.metadata_complaint_problems.updated_on
-                or c.metadata_housing_maintenance.cache_date
+            ) or (
+                c.metadata_housing_maintenance.cache_date
                 < c.metadata_housing_maintenance.updated_on
             )
 
