@@ -15,7 +15,14 @@ config.yaml
 *.pdf
 
 # data path
-data/*
+data/old
+
+# Large datasets
+complaint-problems-raw.csv
+housing-maintenance-code-complaints-raw.csv
+
+# Dataset metadata
+metadata.pickle
 
 # Old analysis
 brownsville_analysis.ipynb
