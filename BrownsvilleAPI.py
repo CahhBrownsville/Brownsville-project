@@ -1,6 +1,5 @@
 import json
 import os
-from re import sub
 from typing import Any, List, Tuple, Union
 
 from branca.element import CssLink
@@ -30,7 +29,6 @@ class Brownsville:
             os.mkdir(self.path)
 
         self.config = self.__load_config()
-        # print(self.config)
         self.geocode_client = GeocodeClient(self.config["geocode"]["app_token"])
 
         self.__load_dataset(force_load)
@@ -40,7 +38,10 @@ class Brownsville:
 
         self.__get_spatial_information()
 
-        self.__filter_no_complaints()
+        # self.__filter_no_complaints()
+
+        self._map = self.__update_map()
+        
 
     @property
     def buildings(self) -> np.ndarray:
@@ -50,20 +51,21 @@ class Brownsville:
         return self.data["buildingid"].unique()
 
     @property
-    def complaints(self):
+    def complaints(self) -> pd.Series:
         """
         Returns a Pandas DataFrame with building_id's and their respective
         number of complaints reported.
         """
 
-        complaints = np.zeros(len(self.buildings))
-        for i, building_id in enumerate(self.buildings):
-            num_of_complaints = self.complaint_number(building_id)
-            complaints[i] = num_of_complaints
+        # complaints = np.zeros(len(self.buildings))
+        # for i, building_id in enumerate(self.buildings):
+        #     num_of_complaints = self.complaint_number(building_id)
+        #     complaints[i] = num_of_complaints
 
-        df = pd.DataFrame({"buildingid": self.buildings, "complaints": complaints})
+        # df = pd.DataFrame({"buildingid": self.buildings, "complaints": complaints})
 
-        return df
+        # return df
+        return self.data["buildingid"].value_counts()
 
     def get_date_range(self, by: str = "status") -> Tuple[pd.Timestamp, pd.Timestamp]:
         """
@@ -300,11 +302,12 @@ class Brownsville:
         building_id: `int`
             ID of the building in the dataset.
         """
-        common_complaints = self.get_feature_occurrences_by_building(
-            building_id, by=["majorcategory", "minorcategory"], find_all=True
-        )
+        # common_complaints = self.get_feature_occurrences_by_building(
+        #     building_id, by=["majorcategory", "minorcategory"], find_all=True
+        # )
 
-        return int(common_complaints.values.sum())
+        # return int(common_complaints.values.sum())
+        return (self.data["buildingid"] == building_id).sum()
 
     def get_common_complaint_categories(self, building_id: int) -> int:
         """
@@ -318,6 +321,8 @@ class Brownsville:
         common_complaints = self.get_feature_occurrences_by_building(
             building_id, by=["majorcategory", "minorcategory"], find_all=True
         )
+        if len(common_complaints) == 0:
+            return ("n/a", "")
 
         return common_complaints.index[0]
 
@@ -363,49 +368,83 @@ class Brownsville:
             zoom_start=12,
         )
 
+
         columns = ["buildingid", "address", "latitude", "longitude"]
         unique_addresses = self.data[columns].groupby(columns).size()
 
-        self.__create_marker_cluster(nyc_map, unique_addresses)
+        # Import the map marker style
+        nyc_map.get_root().header.add_child(CssLink("./assets/css/foliumStyle.css"))
+
+
+        self.__create_marker_cluster(unique_addresses).add_to(nyc_map)
+
+        lats = self.data["latitude"].values
+        lons = self.data["longitude"].values
         
+        complaints_per_building = self.complaints
+        weight_f = lambda b_id: complaints_per_building[b_id]
+        # buildings = unique_addresses.index.get_level_values(0).to_series()
+        # weights = buildings.apply(weight_f).values
+        weights = self.data["buildingid"].apply(weight_f).values
+        weights = (weights-min(weights))/(max(weights)-min(weights))
+        
+        # print(type(lats), type(lons), type(weights))
+        # print(lats.dtype, lons.dtype, weights.dtype)
+        # print(lats.shape, lons.shape, weights.shape)
+        # data = [(float(lat), float(lon), float(w)) for lat, lon, w in zip(lats, lons, weights)]
+        folium.plugins.HeatMap(
+            data=list(zip(lats, lons, weights)),
+            # data=data,
+            name="Brownsville heat map",
+            min_opacity=0.3,
+            max_opacity=0.7
+
+        ).add_to(nyc_map)
+
+        folium.LayerControl().add_to(nyc_map)
+
+        # print(type(nyc_map))
+
         # Save the map to an HTML file
         if save_map:
             filename = os.path.join(self.path, "brownsville.html")
             nyc_map.save(outfile=filename)
+            # nyc_map.save(outfile=filename)
 
         return nyc_map
 
     def __create_marker_cluster(
-        self, folium_map: folium.Map, df: pd.DataFrame
+        self, df: pd.DataFrame
     ) -> folium.plugins.MarkerCluster:
         """
         Accepts a Folium map in which custom leaflet marker cluster are added.
 
         Parameters:
         -----------
-        folium_map: `folium_map`
-            Map where the marker cluster will be added.
         df: `pd.DataFrame`
             Pandas DataFrame used as reference for the marker clusters.
         """
-        
+
+        # load the icon creation function
         icon_create_function = ""
         with open("./static/js/iconCreateFunction.js", "r") as f:
             icon_create_function = f.read()
 
-        # Import the map marker style
-        folium_map.get_root().header.add_child(CssLink('./assets/css/foliumStyle.css'))
+        
 
         # Create and add the marker cluster to the folium map
-        markerCluster = folium.plugins.MarkerCluster(
+        marker_cluster = folium.plugins.MarkerCluster(
+            name="Address locations", 
             icon_create_function=icon_create_function
-        ).add_to(folium_map)
-        
+        )
+
         for building_id, address, latitude, longitude in df.index:
 
             number_of_reports = self.complaint_number(building_id)
-            major_category, minor_category = self.get_common_complaint_categories(building_id)
-            
+            major_category, minor_category = self.get_common_complaint_categories(
+                building_id
+            )
+            complaint = f"{major_category.title()} - {minor_category.title()}"
             iframe = folium.IFrame(
                 html=f"""
                     <b>{address}</b>
@@ -419,9 +458,7 @@ class Brownsville:
                     <br>
                     <b>Longitude:</b> {longitude}
                     <br>
-                    <b>Most common major category:</b> {major_category}
-                    <br>
-                    <b>Most common minor category:</b> {minor_category}
+                    <b>Most frequent complaint:</b> {complaint}
 
                     <style>
                         html * {{
@@ -433,22 +470,26 @@ class Brownsville:
                 """
             )
 
-            popup = folium.Popup(
-                iframe,
-                min_width=350,
-                max_width=350, 
-                parse_html=True
-            )
+            popup = folium.Popup(iframe, min_width=350, max_width=350, parse_html=True)
 
             marker = folium.Marker(
                 location=[latitude, longitude],
                 popup=address,
                 icon_create_function=icon_create_function,
-                reports=number_of_reports
+                tooltip=f"{number_of_reports} reports",
+                reports=float(number_of_reports),
             )
 
             popup.add_to(marker)
-            marker.add_to(markerCluster)
+            marker.add_to(marker_cluster)
+
+        return marker_cluster
+
+    def __update_map(self):
+        """
+        Helper function to update map when instantiating the class. 
+        """
+        self.display_map(save_map = True)
 
     def __filter_no_complaints(self) -> None:
         """
@@ -493,7 +534,6 @@ class Brownsville:
             street, city, zip_code = value[1]
             address = " ".join((street, city, str(zip_code)))
             lat, lng = address_to_coord[address]
-            # print(lat, lng)
 
             latitudes[i] = lat
             longitudes[i] = lng
@@ -575,15 +615,16 @@ class Brownsville:
 
 if __name__ == "__main__":
     b = Brownsville()
-    # b.filter_no_complaints()
-    print(b.buildings.shape)
-    print(b.complaint_number(311915))
-    # print(b.complaints)
-#     by_address = b.get_feature_occurrences_by_key(
-#         keys=["streetname", "apartment"],
-#         values=["PACIFIC STREET", "1"],
-#         features=["majorcategory"],
-#         n=5,
-#     )
+    # b.display_map(True)
+#     # b.filter_no_complaints()
+#     print(b.buildings.shape)
+#     print(b.complaint_number(311915))
+#     # print(b.complaints)
+# #     by_address = b.get_feature_occurrences_by_key(
+# #         keys=["streetname", "apartment"],
+# #         values=["PACIFIC STREET", "1"],
+# #         features=["majorcategory"],
+# #         n=5,
+# #     )
 
-#     print(by_address)
+# #     print(by_address)
