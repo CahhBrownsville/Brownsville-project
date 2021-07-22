@@ -1,5 +1,5 @@
-# Pycache directory
-__pycache__/*
+# Pycache directories
+**/__pycache__/*
 
 # VS Code workspace 
 workspace.code-workspace
@@ -26,3 +26,4 @@ metadata.pickle
 
 # Old analysis
 brownsville_analysis.ipynb
+old_files
