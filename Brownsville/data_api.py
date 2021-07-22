@@ -206,6 +206,7 @@ class Client(object):
         convert_dict = {
             "complaintid" : "Int64",
             "statusid" : "Int64",
+            "statusdate": "datetime64"
         }
 
         df_housing_maintenance = self.load_housing_maintenance(
@@ -213,7 +214,6 @@ class Client(object):
             where="zip='11212' OR zip='11233'"
         )
 
-        # df_housing_maintenance = df_housing_maintenance.astype(convert_dict, errors="ignore")
         min_date = min(df_housing_maintenance["statusdate"])
 
         df_complaint_problems = self.load_complaint_problems(
@@ -224,17 +224,33 @@ class Client(object):
             where=f"statusdate>='{min_date}'"
         )
 
-        # df_complaint_problems = df_complaint_problems.astype(convert_dict, errors="ignore")
+        # df_311 = self.load_311(
+        #     fetch_all=True, 
+        #     select="created_date, closed_date, complaint_type, descriptor, x_coordinate_state_plane,    \
+        #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude", 
+        #     where=
+        #         "agency IN ('DOB', 'HPD') AND incident_zip IN ('11212', '11233')"
+        # )
+
+        df_housing_maintenance = df_housing_maintenance.astype(convert_dict)
+        df_complaint_problems = df_complaint_problems.astype(convert_dict)
         merge_columns = ["complaintid", "statusdate"]
+        # merge_columns = ["complaintid"]
+        
+        # df_brownsville = pd.join(
+        #     df_housing_maintenance,
+        #     df_complaint_problems,
+        #     on=merge_columns,
+        #     how="left"
+        # )
 
         df_brownsville = pd.merge(
             df_housing_maintenance,
             df_complaint_problems,
             on=merge_columns,
+            how="left"
         )
-
         
-
         df_brownsville = df_brownsville[
             ['complaintid', 'buildingid', 'boroughid', 'borough', 'housenumber',
              'streetname', 'zip', 'block', 'lot', 'apartment', 'communityboard',

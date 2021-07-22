@@ -370,16 +370,35 @@ class Brownsville:
         columns = ["buildingid", "address", "latitude", "longitude"]
         unique_addresses = self.data[columns].groupby(columns).size()
 
+        two_year_filter = (self.data["statusdate"].dt.year == max(self.data["statusdate"].dt.year) - 2)
+        data_two_years = self.data[two_year_filter][columns]
+        unique_addresses_two_years = data_two_years.groupby(columns).size()
+
+        five_year_filter = (self.data["statusdate"].dt.year == max(self.data["statusdate"].dt.year) - 5)
+        data_five_years = self.data[five_year_filter][columns]
+        unique_addresses_five_years = data_five_years.groupby(columns).size()
+
         # Import the map marker style
         nyc_map.get_root().header.add_child(CssLink("./assets/css/foliumStyle.css"))
 
-        self.__create_marker_cluster(unique_addresses).add_to(nyc_map)
+        self.__create_marker_cluster(
+            unique_addresses,
+            name="Address locations"
+        ).add_to(nyc_map)
+        self.__create_marker_cluster(
+            unique_addresses_two_years,
+            name="Address locations (two years)"
+        ).add_to(nyc_map)
+        self.__create_marker_cluster(
+            unique_addresses_five_years,
+            name="Address locations (five years)"
+        ).add_to(nyc_map)
 
         # Get the coordinates for each building
         lats = self.data["latitude"].values
         lons = self.data["longitude"].values
 
-        # Calculate and 0-1 normalize heatmap weights 
+        # Calculate and 0-1 normalize heatmap weights
         complaints_per_building = self.complaints
         weight_f = lambda b_id: complaints_per_building[b_id]
         weights = self.data["buildingid"].apply(weight_f).values
@@ -387,7 +406,6 @@ class Brownsville:
 
         folium.plugins.HeatMap(
             data=list(zip(lats, lons, weights)),
-            # data=data,
             name="Brownsville heat map",
             min_opacity=0.3,
             max_opacity=0.7,
@@ -402,7 +420,9 @@ class Brownsville:
 
         return nyc_map
 
-    def __create_marker_cluster(self, df: pd.DataFrame) -> folium.plugins.MarkerCluster:
+    def __create_marker_cluster(
+        self, df: pd.DataFrame, name: str = "name not specified"
+    ) -> folium.plugins.MarkerCluster:
         """
         Accepts a Folium map in which custom leaflet marker cluster are added.
 
@@ -410,6 +430,8 @@ class Brownsville:
         -----------
         df: `pd.DataFrame`
             Pandas DataFrame used as reference for the marker clusters.
+        name: `str`
+            Name of the marker cluster
         """
 
         # load the icon creation function
@@ -419,7 +441,7 @@ class Brownsville:
 
         # Create and add the marker cluster to the folium map
         marker_cluster = folium.plugins.MarkerCluster(
-            name="Address locations", icon_create_function=icon_create_function
+            name=name, icon_create_function=icon_create_function
         )
 
         for building_id, address, latitude, longitude in df.index:
@@ -598,8 +620,10 @@ class Brownsville:
             return ()
 
 
-if __name__ == "__main__":
-    b = Brownsville()
+# if __name__ == "__main__":
+#     # b = Brownsville()
+#     # def fun():
+#     print(os.getcwd())
     # b.display_map(True)
 #     # b.filter_no_complaints()
 #     print(b.buildings.shape)
