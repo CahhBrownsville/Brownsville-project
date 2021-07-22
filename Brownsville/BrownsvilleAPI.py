@@ -619,21 +619,3 @@ class Brownsville:
             )
             return ()
 
-
-# if __name__ == "__main__":
-#     # b = Brownsville()
-#     # def fun():
-#     print(os.getcwd())
-    # b.display_map(True)
-#     # b.filter_no_complaints()
-#     print(b.buildings.shape)
-#     print(b.complaint_number(311915))
-#     # print(b.complaints)
-# #     by_address = b.get_feature_occurrences_by_key(
-# #         keys=["streetname", "apartment"],
-# #         values=["PACIFIC STREET", "1"],
-# #         features=["majorcategory"],
-# #         n=5,
-# #     )
-
-# #     print(by_address)
