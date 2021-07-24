@@ -27,3 +27,6 @@ metadata.pickle
 # Old analysis
 brownsville_analysis.ipynb
 old_files
+
+# documentation HTML files
+html
