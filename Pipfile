@@ -12,6 +12,7 @@ numpy = "*"
 pandas = "*"
 pyyaml = "*"
 sodapy = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.8"
