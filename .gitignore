@@ -30,3 +30,6 @@ old_files
 
 # documentation HTML files
 html
+
+# vscode file
+.vscode
