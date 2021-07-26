@@ -14,11 +14,14 @@ from sodapy import Socrata
 
 _DOMAIN = "data.cityofnewyork.us"
 
+
 class UnknownDatasetException(Exception):
-    def __init__(self, msg:str = "Passed dataset not in list of valid dataset") -> None:
+    def __init__(self, msg: str = "Passed dataset not in list of valid dataset") -> None:
         super().__init__(msg)
 
-@dataclass
+# @dataclass
+
+
 class DatasetMetaInformation:
 
     endpoint: str
@@ -109,7 +112,8 @@ class Client(object):
                 timeout=timeout,
             )
 
-        self._DATA_PATH = data_path
+        self.__verify_data_path(data_path)
+
         self.__load_metadata()
 
     @property
@@ -126,6 +130,7 @@ class Client(object):
                 self.metadata_housing_maintenance.information,
                 self.metadata_dob_complaints.information,
                 self.metadata_brownsville.information,
+                self.metadata_pluto.information,
             ]
         )
         return s
@@ -140,7 +145,8 @@ class Client(object):
             Flag indicating whether all records should be feteched.
         """
 
-        df = self.__get_results(self.metadata_311, fetch_all=fetch_all, **kwargs)
+        df = self.__get_results(
+            self.metadata_311, fetch_all=fetch_all, **kwargs)
 
         return df
 
@@ -204,39 +210,46 @@ class Client(object):
         #     return df
 
         convert_dict = {
-            "complaintid" : "Int64",
-            "statusid" : "Int64",
+            "complaintid": "Int64",
+            "statusid": "Int64",
             "statusdate": "datetime64"
         }
 
         df_housing_maintenance = self.load_housing_maintenance(
             fetch_all=fetch_all,
-            where="zip='11212' OR zip='11233'"
+            where="communityboard=16"
         )
 
         min_date = min(df_housing_maintenance["statusdate"])
+        min_complaint_id = min(df_housing_maintenance["complaintid"])
+        max_complaint_id = max(df_housing_maintenance["complaintid"])
 
         df_complaint_problems = self.load_complaint_problems(
             fetch_all=fetch_all,
-            select="complaintid, unittypeid, spacetypeid, "
-                  +"typeid, majorcategoryid, minorcategoryid, codeid, "
-                  +"statusid, statusdate, statusdescription",
-            where=f"statusdate>='{min_date}'"
+            select="distinct complaintid, unittypeid, spacetypeid, "
+            + "typeid, majorcategoryid, minorcategoryid, codeid, "
+            + "statusid, statusdate, statusdescription",
+            where=f"statusdate>='{min_date}' "
+            +f"AND (complaintid between '{min_complaint_id}' and '{max_complaint_id}')"
         )
 
         # df_311 = self.load_311(
-        #     fetch_all=True, 
+        #     fetch_all=True,
         #     select="created_date, closed_date, complaint_type, descriptor, x_coordinate_state_plane,    \
-        #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude", 
+        #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude",
         #     where=
         #         "agency IN ('DOB', 'HPD') AND incident_zip IN ('11212', '11233')"
         # )
 
-        df_housing_maintenance = df_housing_maintenance.astype(convert_dict)
-        df_complaint_problems = df_complaint_problems.astype(convert_dict)
+        try:
+            df_housing_maintenance = df_housing_maintenance.astype(
+                convert_dict)
+            df_complaint_problems = df_complaint_problems.astype(convert_dict)
+        except:
+            print("Conversion error")
         merge_columns = ["complaintid", "statusdate"]
         # merge_columns = ["complaintid"]
-        
+
         # df_brownsville = pd.join(
         #     df_housing_maintenance,
         #     df_complaint_problems,
@@ -250,7 +263,7 @@ class Client(object):
             on=merge_columns,
             how="left"
         )
-        
+
         df_brownsville = df_brownsville[
             ['complaintid', 'buildingid', 'boroughid', 'borough', 'housenumber',
              'streetname', 'zip', 'block', 'lot', 'apartment', 'communityboard',
@@ -259,9 +272,24 @@ class Client(object):
              'statusdescription']
         ]
 
-        df_brownsville.to_csv(self._DATA_PATH + self.metadata_brownsville.filename)
+        df_brownsville.to_csv(
+            self._DATA_PATH + self.metadata_brownsville.filename)
 
         return df_brownsville
+
+    def load_pluto(self, fetch_all: bool = False, **kwargs):
+        """
+        Return a DataFrame containing all records from the Primary Land Use Tax Lot Output (PLUTO) dataset.
+
+        Parameters
+        ----------
+        fetch_all: `bool`
+            Flag indicating whether all records should be feteched.
+        """
+        df = self.__get_results(
+            self.metadata_pluto, fetch_all=fetch_all, **kwargs
+        )
+        return df
 
     def __get_results(
         self, metadata: DatasetMetaInformation, fetch_all: bool = False, load_local=True, **kwargs
@@ -286,15 +314,17 @@ class Client(object):
         if fetch_all:
 
             fetch_remote = True
+
             # Verify that the queries for the current and previous requests are identical
             if metadata.last_query == kwargs:
 
-                # Check if the datset is cached and the load_local flag is true
+                # Check if the dataset is cached and the load_local flag is true
                 if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
                     print("Loading cached dataset...")
 
                     # Read the file stored in cache
-                    df = pd.read_csv(self._DATA_PATH + metadata.filename, index_col=0)
+                    df = pd.read_csv(self._DATA_PATH +
+                                     metadata.filename, index_col=0)
                     fetch_remote = False
 
                     # Check if more rows have been added to the dataset
@@ -304,7 +334,8 @@ class Client(object):
                         kwargs["offset"] = metadata.offset
 
                         # Fetch the remaining records from the website
-                        results = self._client.get_all(metadata.endpoint, **kwargs)
+                        results = self._client.get_all(
+                            metadata.endpoint, **kwargs)
                         remote_df = pd.DataFrame.from_records(results)
 
                         # Append the new rows to the old dataframe and update the metadata
@@ -312,7 +343,7 @@ class Client(object):
 
             # Fetch the whole dataset from the NYC OpenData servers
             if fetch_remote:
-                print("Downloading dataset...")
+                print(f"Downloading {metadata.name} dataset...")
                 results = self._client.get_all(metadata.endpoint, **kwargs)
                 df = pd.DataFrame.from_records(results)
                 metadata.last_query = kwargs
@@ -323,8 +354,18 @@ class Client(object):
             df.to_csv(self._DATA_PATH + metadata.filename)
 
         else:
-            results = self._client.get(metadata.endpoint, **kwargs)
-            df = pd.DataFrame.from_records(results)
+            # Check if the dataset is cached and the load_local flag is true
+            if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
+                print("Loading cached dataset...")
+
+                # Read the file stored in cache
+                limit = kwargs.get("limit", 1000)
+
+                df = pd.read_csv(self._DATA_PATH +
+                                 metadata.filename, index_col=0, nrows=limit)
+            else:
+                results = self._client.get(metadata.endpoint, **kwargs)
+                df = pd.DataFrame.from_records(results)
 
         return df
 
@@ -337,10 +378,11 @@ class Client(object):
             self.metadata_complaint_problems,
             self.metadata_housing_maintenance,
             self.metadata_dob_complaints,
-            self.metadata_brownsville
+            self.metadata_brownsville,
+            self.metadata_pluto
         )
 
-        with open(self._DATA_PATH + "./metadata.pickle", "wb") as f:
+        with open(self._DATA_PATH + "metadata.pickle", "wb") as f:
             pickle.dump(objs, f)
 
     def __load_metadata(self) -> None:
@@ -349,7 +391,7 @@ class Client(object):
         state for each of the data sources, else it fetches the information from the NYC OpenData servers.
         """
         # Fetch meta information from the proposed datasets if not already stored
-        if not os.path.exists(self._DATA_PATH + "./metadata.pickle"):
+        if not os.path.exists(self._DATA_PATH + "metadata.pickle"):
             self.metadata_311 = DatasetMetaInformation(
                 self._client, "erm2-nwe9"
             )
@@ -362,6 +404,9 @@ class Client(object):
             self.metadata_dob_complaints = DatasetMetaInformation(
                 self._client, "eabe-havv"
             )
+            self.metadata_pluto = DatasetMetaInformation(
+                self._client, "64uk-42ks"
+            )
 
             date_1 = self.metadata_housing_maintenance.updated_on.timestamp()
             date_2 = self.metadata_complaint_problems.updated_on.timestamp()
@@ -372,23 +417,39 @@ class Client(object):
                 attribution="Team Survey-Fix",
                 category="Housing complaints",
                 description="Complaint reports on the Brownsville area",
-                rowsUpdatedAt=min(date_1, date_2) 
+                rowsUpdatedAt=min(date_1, date_2)
             )
         else:
             # Load the metadata information from storage
-            with open(self._DATA_PATH + "./metadata.pickle", "rb") as f:
+            with open(self._DATA_PATH + "metadata.pickle", "rb") as f:
                 objs = pickle.load(f)
                 self.metadata_311 = objs[0]
                 self.metadata_complaint_problems = objs[1]
                 self.metadata_housing_maintenance = objs[2]
                 self.metadata_dob_complaints = objs[3]
                 self.metadata_brownsville = objs[4]
+                self.metadata_pluto = objs[5]
 
         self.metadata_311.loaded = False
         self.metadata_complaint_problems.loaded = False
         self.metadata_housing_maintenance.loaded = False
         self.metadata_dob_complaints.loaded = False
         self.metadata_brownsville.loaded = False
+        self.metadata_pluto.loaded = False
+
+    def __verify_data_path(self, data_path: str):
+        self._DATA_PATH = data_path
+
+        # Ensure the path ends with the correct path separation token
+        if not data_path[-1] in ("\\", "/"):
+            if "/" in data_path:
+                self._DATA_PATH += "/"
+            else:
+                self._DATA_PATH += "\\"
+
+        # Create the data path if it does not exist
+        if not os.path.exists(data_path):
+            os.mkdir(data_path)
 
     def close(self):
         """
