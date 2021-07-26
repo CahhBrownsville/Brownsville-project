@@ -2,15 +2,16 @@ import json
 import os
 from typing import Any, List, Tuple, Union
 
-from branca.element import CssLink
+from branca.element import CssLink, JavascriptLink
 import folium
 import folium.plugins
 import numpy as np
 import pandas as pd
 import yaml
 
-from data_api import Client
-from geocode import GeocodeClient
+from .data_api import Client
+from .geocode import GeocodeClient
+from .vendors.GroupedLayerControl import grouped_layer_control as glc
 
 
 class InvalidColumnNameError(Exception):
@@ -379,46 +380,128 @@ class Brownsville:
         unique_addresses_five_years = data_five_years.groupby(columns).size()
 
         # Import the map marker style
-        nyc_map.get_root().header.add_child(CssLink("./assets/css/foliumStyle.css"))
+        nyc_map.get_root().header.add_child(CssLink("./static/css/foliumStyle.css"))
+        nyc_map.get_root().header.add_child(JavascriptLink("./static/js/leaflet.groupedlayercontrol.min.js"))
 
-        self.__create_marker_cluster(
-            unique_addresses,
-            name="Address locations"
+
+        feature_group_1 = self.__create_marker_feature_group(
+            name="Address Locations",
+            df=unique_addresses,
+            folium_map=nyc_map
+        )
+        feature_group_2 = self.__create_marker_feature_group(
+            name="Address locations (two years)",
+            df=unique_addresses_two_years,
+            folium_map=nyc_map
+        )
+        feature_group_3 = self.__create_marker_feature_group(
+            name="Address locations (five years)",
+            df=unique_addresses_five_years,
+            folium_map=nyc_map
+        )
+
+        # # Get the coordinates for each building
+        # lats = self.data["latitude"].values
+        # lons = self.data["longitude"].values
+
+        # # Calculate and 0-1 normalize heatmap weights
+        # complaints_per_building = self.complaints
+        # weight_f = lambda b_id: complaints_per_building[b_id]
+        # weights = self.data["buildingid"].apply(weight_f).values
+        # weights = (weights - min(weights)) / (max(weights) - min(weights))
+
+        # feature_group_4 = folium.FeatureGroup(name="Brownsville heatmap", show=True)
+        # folium.plugins.HeatMap(
+        #     data=list(zip(lats, lons, weights)),
+        #     name="Brownsville heatmap",
+        #     min_opacity=0.3,
+        #     max_opacity=0.7,
+        # ).add_to(feature_group_4)
+        # feature_group_4.add_to(nyc_map)
+        feature_group_4 = self.__create_heatmap_feature_group(
+            name="Brownsville heatmap",
+            folium_map=nyc_map
+        )
+        feature_group_5 = self.__create_heatmap_feature_group(
+            name="Brownsville heatmap (two years)",
+            folium_map=nyc_map,
+            n=2
+        )
+        feature_group_6 = self.__create_heatmap_feature_group(
+            name="Brownsville heatmap (five years)",
+            folium_map=nyc_map,
+            n=5
+        )
+
+        # folium.LayerControl().add_to(nyc_map)
+        glc.GroupedLayerControl({}, {
+            "Address locations" : {
+                "All years":  feature_group_1,
+                "Two years":  feature_group_2,
+                "Five years": feature_group_3},
+            "Heatmap" : {
+                "All years": feature_group_4,
+                "Two years": feature_group_5,
+                "Five years": feature_group_6
+            }},
+            ["Address locations", "Heatmap"]
         ).add_to(nyc_map)
-        self.__create_marker_cluster(
-            unique_addresses_two_years,
-            name="Address locations (two years)"
-        ).add_to(nyc_map)
-        self.__create_marker_cluster(
-            unique_addresses_five_years,
-            name="Address locations (five years)"
-        ).add_to(nyc_map)
-
-        # Get the coordinates for each building
-        lats = self.data["latitude"].values
-        lons = self.data["longitude"].values
-
-        # Calculate and 0-1 normalize heatmap weights
-        complaints_per_building = self.complaints
-        weight_f = lambda b_id: complaints_per_building[b_id]
-        weights = self.data["buildingid"].apply(weight_f).values
-        weights = (weights - min(weights)) / (max(weights) - min(weights))
-
-        folium.plugins.HeatMap(
-            data=list(zip(lats, lons, weights)),
-            name="Brownsville heat map",
-            min_opacity=0.3,
-            max_opacity=0.7,
-        ).add_to(nyc_map)
-
-        folium.LayerControl().add_to(nyc_map)
 
         # Save the map to an HTML file
         if save_map:
-            filename = os.path.join(self.path, "brownsville.html")
+            filename = os.path.join(os.getcwd(), "brownsville.html")
+            
+            # filename = os.path.join(path)
             nyc_map.save(outfile=filename)
 
         return nyc_map
+
+    def __create_heatmap_feature_group(
+        self, name:str, folium_map: folium.Map, n:int=None
+    ) -> folium.FeatureGroup:
+        """
+        """
+
+        data = self.data
+        if n:
+            n_year_filter = (data["statusdate"].dt.year == max(data["statusdate"].dt.year) - n)
+            data = data[n_year_filter]
+
+        # Get the coordinates for each building
+        lats = data["latitude"].values
+        lons = data["longitude"].values
+
+        # Calculate and 0-1 normalize heatmap weights
+        complaints_per_building = data["buildingid"].value_counts()
+        weight_f = lambda b_id: complaints_per_building[b_id]
+        weights = data["buildingid"].apply(weight_f).values
+        weights = (weights - min(weights)) / (max(weights) - min(weights))
+
+        feature_group = folium.FeatureGroup(name=name, show=True)
+        folium.plugins.HeatMap(
+            data=list(zip(lats, lons, weights)),
+            name=name,
+            min_opacity=0.3,
+            max_opacity=0.7,
+        ).add_to(feature_group)
+        feature_group.add_to(folium_map)
+
+        return feature_group
+
+    def __create_marker_feature_group(
+        self, name:str, df:pd.DataFrame, folium_map: folium.Map
+    ) -> folium.FeatureGroup:
+        """
+        """
+
+        feature_group = folium.FeatureGroup(name=name, show=True)
+        self.__create_marker_cluster(
+            df,
+            name=name
+        ).add_to(feature_group)
+        feature_group.add_to(folium_map)
+
+        return feature_group
 
     def __create_marker_cluster(
         self, df: pd.DataFrame, name: str = "name not specified"
@@ -619,3 +702,7 @@ class Brownsville:
             )
             return ()
 
+# if __name__ == "__main__":
+#     # import vendors
+#     # vendors.GroupedLayerControl()
+#     # print('asdf')
