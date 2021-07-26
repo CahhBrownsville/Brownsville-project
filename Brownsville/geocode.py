@@ -61,8 +61,3 @@ class GeocodeClient:
         
         url = f"{GeocodeClient.BASE_URL}?" + "&".join(q)
         return url
-
-if __name__ == "__main__":
-    # print(get_lat_lng('1600 Pennsylvania Ave NW', 'washington', 'dc', '20500'))
-    g = GeocodeClient(token=TOKEN)
-    print(g.get_lat_lng('1 Remsen Avenue', 'brooklyn', 'ny', '11212'))
