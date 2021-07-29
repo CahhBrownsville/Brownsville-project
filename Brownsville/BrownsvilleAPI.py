@@ -21,27 +21,35 @@ class InvalidColumnNameError(Exception):
 
 class Brownsville:
     def __init__(
-        self, path: str = "./data/brownsville/", force_load: bool = False
+        self, path: str = "./data/brownsville/", force_load: bool = False,
+        update_map: bool = True, verbose=True,
     ) -> None:
         self.path = path
+        self.verbose = verbose
 
         # Create the directory where the dataset will be stored
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
         self.config = self.__load_config()
-        self.geocode_client = GeocodeClient(self.config["geocode"]["app_token"])
+        self.geocode_client = GeocodeClient(
+            self.config["geocode"]["app_token"])
 
         self.__load_dataset(force_load)
         self.__translate_ids()
-        self.__parse_datatypes()
         self.__set_addresses()
 
         self.__get_spatial_information()
+        self.__get_BBL()
 
+        self.__load_pluto()
+
+        self.__parse_datatypes()
         # self.__filter_no_complaints()
+        if update_map:
+            self._map = self.__update_map()
 
-        self._map = self.__update_map()
+        self.save(overwrite_file=True)
 
     @property
     def buildings(self) -> np.ndarray:
@@ -97,10 +105,13 @@ class Brownsville:
             date_counts.loc[["Jul", "Aug", "Sep"]].sum(),
             date_counts.loc[["Oct", "Nov", "Dec"]].sum(),
         ]
-        print(f"{seasons[0]}: {values[0]}")
-        print(f"{seasons[1]}: {values[1]}")
-        print(f"{seasons[2]}: {values[2]}")
-        print(f"{seasons[3]}: {values[3]}")
+
+        if self.verbose:
+            for i in range(len(seasons)):
+                print(f"{seasons[i]}: {values[i]}")
+        # print(f"{seasons[1]}: {values[1]}")
+        # print(f"{seasons[2]}: {values[2]}")
+        # print(f"{seasons[3]}: {values[3]}")
 
         return seasons, values
 
@@ -164,7 +175,7 @@ class Brownsville:
                     if len(date_counts) > end:
                         end = len(date_counts) - 1
 
-                    year_range = date_counts.iloc[i : i + step].sort_index()
+                    year_range = date_counts.iloc[i: i + step].sort_index()
                     years.append(year_range)
 
                 return list(reversed(years))
@@ -339,7 +350,7 @@ class Brownsville:
             Flag indicating whether the file should be overwritten or not.
         """
         if not filename:
-            filename = self.path + "brownsville.csv"
+            filename = os.path.join(self.path, "brownsville.csv")
 
         if os.path.exists(filename):
             if not overwrite_file:
@@ -371,18 +382,20 @@ class Brownsville:
         columns = ["buildingid", "address", "latitude", "longitude"]
         unique_addresses = self.data[columns].groupby(columns).size()
 
-        two_year_filter = (self.data["statusdate"].dt.year == max(self.data["statusdate"].dt.year) - 2)
+        two_year_filter = (self.data["statusdate"].dt.year == max(
+            self.data["statusdate"].dt.year) - 2)
         data_two_years = self.data[two_year_filter][columns]
         unique_addresses_two_years = data_two_years.groupby(columns).size()
 
-        five_year_filter = (self.data["statusdate"].dt.year == max(self.data["statusdate"].dt.year) - 5)
+        five_year_filter = (self.data["statusdate"].dt.year == max(
+            self.data["statusdate"].dt.year) - 5)
         data_five_years = self.data[five_year_filter][columns]
         unique_addresses_five_years = data_five_years.groupby(columns).size()
 
         # Import the map marker style
-        nyc_map.get_root().header.add_child(CssLink("./static/css/foliumStyle.css"))
-        nyc_map.get_root().header.add_child(JavascriptLink("./static/js/leaflet.groupedlayercontrol.min.js"))
-
+        nyc_map.get_root().header.add_child(CssLink("./static/style/foliumStyle.css"))
+        nyc_map.get_root().header.add_child(JavascriptLink(
+            "./static/js/leaflet.groupedlayercontrol.min.js"))
 
         feature_group_1 = self.__create_marker_feature_group(
             name="Address Locations",
@@ -400,24 +413,6 @@ class Brownsville:
             folium_map=nyc_map
         )
 
-        # # Get the coordinates for each building
-        # lats = self.data["latitude"].values
-        # lons = self.data["longitude"].values
-
-        # # Calculate and 0-1 normalize heatmap weights
-        # complaints_per_building = self.complaints
-        # weight_f = lambda b_id: complaints_per_building[b_id]
-        # weights = self.data["buildingid"].apply(weight_f).values
-        # weights = (weights - min(weights)) / (max(weights) - min(weights))
-
-        # feature_group_4 = folium.FeatureGroup(name="Brownsville heatmap", show=True)
-        # folium.plugins.HeatMap(
-        #     data=list(zip(lats, lons, weights)),
-        #     name="Brownsville heatmap",
-        #     min_opacity=0.3,
-        #     max_opacity=0.7,
-        # ).add_to(feature_group_4)
-        # feature_group_4.add_to(nyc_map)
         feature_group_4 = self.__create_heatmap_feature_group(
             name="Brownsville heatmap",
             folium_map=nyc_map
@@ -435,11 +430,11 @@ class Brownsville:
 
         # folium.LayerControl().add_to(nyc_map)
         glc.GroupedLayerControl({}, {
-            "Address locations" : {
+            "Address locations": {
                 "All years":  feature_group_1,
                 "Two years":  feature_group_2,
                 "Five years": feature_group_3},
-            "Heatmap" : {
+            "Heatmap": {
                 "All years": feature_group_4,
                 "Two years": feature_group_5,
                 "Five years": feature_group_6
@@ -450,21 +445,22 @@ class Brownsville:
         # Save the map to an HTML file
         if save_map:
             filename = os.path.join(os.getcwd(), "brownsville.html")
-            
+
             # filename = os.path.join(path)
             nyc_map.save(outfile=filename)
 
         return nyc_map
 
     def __create_heatmap_feature_group(
-        self, name:str, folium_map: folium.Map, n:int=None
+        self, name: str, folium_map: folium.Map, n: int = None
     ) -> folium.FeatureGroup:
         """
         """
 
         data = self.data
         if n:
-            n_year_filter = (data["statusdate"].dt.year == max(data["statusdate"].dt.year) - n)
+            n_year_filter = (data["statusdate"].dt.year ==
+                             max(data["statusdate"].dt.year) - n)
             data = data[n_year_filter]
 
         # Get the coordinates for each building
@@ -473,7 +469,7 @@ class Brownsville:
 
         # Calculate and 0-1 normalize heatmap weights
         complaints_per_building = data["buildingid"].value_counts()
-        weight_f = lambda b_id: complaints_per_building[b_id]
+        def weight_f(b_id): return complaints_per_building[b_id]
         weights = data["buildingid"].apply(weight_f).values
         weights = (weights - min(weights)) / (max(weights) - min(weights))
 
@@ -489,7 +485,7 @@ class Brownsville:
         return feature_group
 
     def __create_marker_feature_group(
-        self, name:str, df:pd.DataFrame, folium_map: folium.Map
+        self, name: str, df: pd.DataFrame, folium_map: folium.Map
     ) -> folium.FeatureGroup:
         """
         """
@@ -559,7 +555,8 @@ class Brownsville:
                 """
             )
 
-            popup = folium.Popup(iframe, min_width=350, max_width=350, parse_html=True)
+            popup = folium.Popup(iframe, min_width=350,
+                                 max_width=350, parse_html=True)
 
             marker = folium.Marker(
                 location=[latitude, longitude],
@@ -574,11 +571,11 @@ class Brownsville:
 
         return marker_cluster
 
-    def __update_map(self):
+    def __update_map(self) -> folium.Map:
         """
         Helper function to update map when instantiating the class.
         """
-        self.display_map(save_map=True)
+        return self.display_map(save_map=True)
 
     def __filter_no_complaints(self) -> None:
         """
@@ -608,7 +605,8 @@ class Brownsville:
             address_to_coord = {}
             for street, city, zip_code in unique_addresses.index:
                 address = " ".join((street, city, str(zip_code)))
-                coord = self.geocode_client.get_lat_lng(street, city, state, zip_code)
+                coord = self.geocode_client.get_lat_lng(
+                    street, city, state, zip_code)
                 address_to_coord[address] = coord
 
             with open(filename, "w") as f:
@@ -634,28 +632,46 @@ class Brownsville:
         """
         Concatenates the house number and street name into a single columns.
         """
-        self.data["address"] = self.data["housenumber"] + " " + self.data["streetname"]
+        self.data["address"] = self.data["housenumber"] + \
+            " " + self.data["streetname"]
 
     def __parse_datatypes(self) -> None:
         """
         Parses the dataset features to their appropiate datatypes.
         """
-        self.data["unittypeid"] = self.data["unittypeid"].astype("Int64")
-        self.data["spacetypeid"] = self.data["spacetypeid"].astype("Int64")
-        self.data["typeid"] = self.data["typeid"].astype("Int64")
-        self.data["majorcategoryid"] = self.data["majorcategoryid"].astype("Int64")
-        self.data["minorcategoryid"] = self.data["minorcategoryid"].astype("Int64")
-        self.data["codeid"] = self.data["codeid"].astype("Int64")
-        self.data["receiveddate"] = self.data["receiveddate"].astype("datetime64")
-        self.data["statusdate"] = self.data["statusdate"].astype("datetime64")
+        convert_dict = {
+            "unittypeid": "Int64",
+            "spacetypeid": "Int64",
+            "typeid": "Int64",
+            "majorcategoryid": "Int64",
+            "minorcategoryid": "Int64",
+            "codeid": "Int64",
+            "yearbuilt": "Int64",
+            "receiveddate": "datetime64",
+            "statusdate": "datetime64"
+        }
 
-    def __load_dataset(self, force_load: bool = False) -> None:
+        try:
+            self.data = self.data.astype(convert_dict)
+        except:
+            print("Conversion error")
+        # self.data["unittypeid"] = self.data["unittypeid"].astype("Int64")
+        # self.data["spacetypeid"] = self.data["spacetypeid"].astype("Int64")
+        # self.data["typeid"] = self.data["typeid"].astype("Int64")
+        # self.data["majorcategoryid"] = self.data["majorcategoryid"].astype("Int64")
+        # self.data["minorcategoryid"] = self.data["minorcategoryid"].astype("Int64")
+        # self.data["codeid"] = self.data["codeid"].astype("Int64")
+        # self.data["receiveddate"] = self.data["receiveddate"].astype("datetime64")
+        # self.data["statusdate"] = self.data["statusdate"].astype("datetime64")
+
+    def __load_dataset(
+        self, force_load: bool = False
+    ) -> bool:
         """
         Uses the Scoracte API custom client to create the Bronwsville dataset.
         """
 
         with Client(*self.config["sodapy"].values(), data_path=self.path) as c:
-
             update_due = (
                 c.metadata_complaint_problems.cache_date
                 < c.metadata_complaint_problems.updated_on
@@ -666,10 +682,15 @@ class Brownsville:
 
             filepath = os.path.join(self.path, c.metadata_brownsville.filename)
             if not force_load and not update_due and os.path.exists(filepath):
-                print("Loading cached dataset...")
+                if self.verbose:
+                    print("Loading cached dataset...")
                 self.data = pd.read_csv(filepath, index_col=0)
+
+                self.fetch_remote = False
             else:
-                self.data = c.load_brownsville(fetch_all=True)
+                self.data = c.load_brownsville(
+                    fetch_all=True, verbose=self.verbose)
+                self.fetch_remote = True
 
     def __translate_ids(self) -> None:
         """
@@ -681,6 +702,48 @@ class Brownsville:
                 value = translations[key]
                 self.data[key] = self.data[key + "id"].map(value)
 
+    def __tokenize_status_description(self) -> None:
+        """
+        """
+        # inspected = False
+        # violations_issued = False
+        # unable_to_gain_access = False
+        # multiple_complaints = False
+        # tenant_confirmed_resolved = False
+        # violations_previously_issued = False
+        # complaints_remain_open = False
+        pass
+
+    def __load_pluto(self) -> None:
+        """
+        Fetches and merges the PLUTO dataset to the Brownsville dataset. 
+        """
+        with Client(*self.config["sodapy"].values(), data_path=self.path) as c:
+            df_pluto = c.load_pluto(
+                fetch_all=True,
+                verbose=self.fetch_remote,
+                select="bbl, bldgclass, bldgarea, numbldgs, numfloors, unitsres, unitstotal,"
+                + "landuse, ownertype, ownername, yearbuilt, yearalter1, yearalter2",
+                where="cd=316"
+            )
+
+            df_pluto["bbl"] = df_pluto["bbl"].astype("int64")
+            self.data = pd.merge(
+                self.data,
+                df_pluto,
+                on="bbl",
+                how="left"
+            )
+
+    def __get_BBL(self) -> None:
+        """
+        """
+        self.data["bbl"] = self.data["boroughid"].astype(str)                \
+            + self.data["block"].astype(str).apply(str.zfill, args=(5,))     \
+            + self.data["lot"].astype(str).apply(str.zfill, args=(4,))
+
+        self.data["bbl"] = self.data["bbl"].astype('int64')
+
     def __load_config(self) -> None:
         """
         Load the configuration file necessary for the API's
@@ -689,20 +752,9 @@ class Brownsville:
             # Load the configuration files with all the credentials for the Socrata API
             with open("./config.yaml", "r") as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
-                # app_token, username, password = config["sodapy"].values()
-
-                # if "sodapy" in config:
-                #     app_token, username, password = config["sodapy"].values()
-                #     return app_token, username, password
-
                 return config
         except FileNotFoundError:
             print(
                 "Configuration file not found. Loading client with default arguments."
             )
             return ()
-
-# if __name__ == "__main__":
-#     # import vendors
-#     # vendors.GroupedLayerControl()
-#     # print('asdf')
