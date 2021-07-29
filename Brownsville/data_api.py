@@ -1,8 +1,3 @@
-"""
-TODO: 
-    - Parse keyword arguments in the __get_results method
-"""
-
 import os
 import pickle
 import textwrap
@@ -265,11 +260,11 @@ class Client(object):
         )
 
         df_brownsville = df_brownsville[
-            ['complaintid', 'buildingid', 'boroughid', 'borough', 'housenumber',
-             'streetname', 'zip', 'block', 'lot', 'apartment', 'communityboard',
-             'receiveddate', 'status', 'unittypeid', 'spacetypeid',
-             'typeid', 'majorcategoryid', 'minorcategoryid', 'codeid', "statusdate",
-             'statusdescription']
+            ["complaintid", "buildingid", "boroughid", "borough", "housenumber",
+             "streetname", "zip", "block", "lot", "apartment", "communityboard",
+             "receiveddate", "status", "unittypeid", "spacetypeid",
+             "typeid", "majorcategoryid", "minorcategoryid", "codeid", "statusdate",
+             "statusdescription"]
         ]
 
         df_brownsville.to_csv(
