@@ -230,7 +230,7 @@ class Client(object):
             + "typeid, majorcategoryid, minorcategoryid, codeid, "
             + "statusid, statusdate, statusdescription",
             where=f"statusdate>='{min_date}' "
-            +f"AND (complaintid between '{min_complaint_id}' and '{max_complaint_id}')"
+            + f"AND (complaintid between '{min_complaint_id}' and '{max_complaint_id}')"
         )
 
         # df_311 = self.load_311(
