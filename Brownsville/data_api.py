@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import pandas as pd
+from pandasql import sqldf
 from sodapy import Socrata
 
 _DOMAIN = "data.cityofnewyork.us"
@@ -130,7 +131,9 @@ class Client(object):
         )
         return s
 
-    def load_311(self, fetch_all: bool = False, **kwargs) -> pd.DataFrame:
+    def load_311(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the 311 Service Requests from 2010 to Present dataset.
 
@@ -138,15 +141,18 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         """
 
         df = self.__get_results(
-            self.metadata_311, fetch_all=fetch_all, **kwargs)
+            self.metadata_311, fetch_all=fetch_all, verbose=verbose, **kwargs
+        )
 
         return df
 
     def load_complaint_problems(
-        self, fetch_all: bool = False, **kwargs
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
     ) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -155,16 +161,18 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         """
 
         df = self.__get_results(
-            self.metadata_complaint_problems, fetch_all=fetch_all, **kwargs
+            self.metadata_complaint_problems, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
 
         return df
 
     def load_housing_maintenance(
-        self, fetch_all: bool = False, **kwargs
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
     ) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -173,15 +181,19 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         """
 
         df = self.__get_results(
-            self.metadata_housing_maintenance, fetch_all=fetch_all, **kwargs
+            self.metadata_housing_maintenance, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
 
         return df
 
-    def load_dob_complaints(self, fetch_all: bool = False, **kwargs) -> pd.DataFrame:
+    def load_dob_complaints(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -> pd.DataFrame:
         """
         Return a DataFrame containing all records from the DOB Complaint Received dataset.
 
@@ -189,20 +201,29 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         """
 
         df = self.__get_results(
-            self.metadata_dob_complaints, fetch_all=fetch_all, **kwargs
+            self.metadata_dob_complaints, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
         return df
 
-    def load_brownsville(self, fetch_all: bool = False) -> pd.DataFrame:
+    def load_brownsville(
+        self, fetch_all: bool = False, verbose:bool=False
+    ) -> pd.DataFrame:
         """
-        TODO: merge the housing maintenance and the complaint problems datasets
-        """
-        # if os.path.exists(self._DATA_PATH + self.metadata_brownsville.filename):
-        #     df = pd.read_csv(self.metadata_brownsville.filename)
-        #     return df
+        Return a DataFrame containing all the compiled records Complaint Problems dataset and the 
+        Housing Maintenance dataset as the Brownsville dataset.
+
+        Parameters
+        ----------
+        fetch_all: `bool`
+            Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
+        """ 
 
         convert_dict = {
             "complaintid": "Int64",
@@ -212,6 +233,7 @@ class Client(object):
 
         df_housing_maintenance = self.load_housing_maintenance(
             fetch_all=fetch_all,
+            verbose=verbose,
             where="communityboard=16"
         )
 
@@ -221,20 +243,11 @@ class Client(object):
 
         df_complaint_problems = self.load_complaint_problems(
             fetch_all=fetch_all,
-            select="distinct complaintid, unittypeid, spacetypeid, "
+            verbose=verbose,
+            select="complaintid, unittypeid, spacetypeid, "
             + "typeid, majorcategoryid, minorcategoryid, codeid, "
-            + "statusid, statusdate, statusdescription",
-            where=f"statusdate>='{min_date}' "
-            + f"AND (complaintid between '{min_complaint_id}' and '{max_complaint_id}')"
+            + "statusid, statusdate, statusdescription"
         )
-
-        # df_311 = self.load_311(
-        #     fetch_all=True,
-        #     select="created_date, closed_date, complaint_type, descriptor, x_coordinate_state_plane,    \
-        #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude",
-        #     where=
-        #         "agency IN ('DOB', 'HPD') AND incident_zip IN ('11212', '11233')"
-        # )
 
         try:
             df_housing_maintenance = df_housing_maintenance.astype(
@@ -242,37 +255,33 @@ class Client(object):
             df_complaint_problems = df_complaint_problems.astype(convert_dict)
         except:
             print("Conversion error")
-        merge_columns = ["complaintid", "statusdate"]
-        # merge_columns = ["complaintid"]
 
-        # df_brownsville = pd.join(
-        #     df_housing_maintenance,
-        #     df_complaint_problems,
-        #     on=merge_columns,
-        #     how="left"
-        # )
+        merge_columns = ["complaintid"]
 
         df_brownsville = pd.merge(
             df_housing_maintenance,
             df_complaint_problems,
             on=merge_columns,
-            how="left"
+            how="left",
+            suffixes=("", "_y")
         )
 
         df_brownsville = df_brownsville[
             ["complaintid", "buildingid", "boroughid", "borough", "housenumber",
-             "streetname", "zip", "block", "lot", "apartment", "communityboard",
+             "streetname", "zip", "block", "lot", "apartment", #"communityboard",
              "receiveddate", "status", "unittypeid", "spacetypeid",
              "typeid", "majorcategoryid", "minorcategoryid", "codeid", "statusdate",
              "statusdescription"]
         ]
 
-        df_brownsville.to_csv(
-            self._DATA_PATH + self.metadata_brownsville.filename)
+        filename = os.path.join(self._DATA_PATH, self.metadata_brownsville.filename)
+        df_brownsville.to_csv(filename)
 
         return df_brownsville
 
-    def load_pluto(self, fetch_all: bool = False, **kwargs):
+    def load_pluto(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -> None:
         """
         Return a DataFrame containing all records from the Primary Land Use Tax Lot Output (PLUTO) dataset.
 
@@ -280,14 +289,18 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         """
         df = self.__get_results(
-            self.metadata_pluto, fetch_all=fetch_all, **kwargs
+            self.metadata_pluto, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
         return df
 
     def __get_results(
-        self, metadata: DatasetMetaInformation, fetch_all: bool = False, load_local=True, **kwargs
+        self, metadata: DatasetMetaInformation,
+        fetch_all: bool = False, load_local=True,
+        verbose:bool=False, **kwargs
     ) -> pd.DataFrame:
         """
         Return a pandas dataframe containing all records from the specified endpoint. If a dataset is already
@@ -300,6 +313,8 @@ class Client(object):
             Object containing the metadata information for the desired dataset.
         fetch_all: `bool`
             Boolean flag indicating whether to return the whole dataset or just a subset.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         """
         # Set the metadata loaded flag
         if not metadata.loaded:
@@ -315,7 +330,8 @@ class Client(object):
 
                 # Check if the dataset is cached and the load_local flag is true
                 if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
-                    print("Loading cached dataset...")
+                    if verbose:
+                        print("Loading cached dataset...")
 
                     # Read the file stored in cache
                     df = pd.read_csv(self._DATA_PATH +
@@ -324,7 +340,8 @@ class Client(object):
 
                     # Check if more rows have been added to the dataset
                     if metadata.cache_date < metadata.updated_on:
-                        print("Updating records...")
+                        if verbose:
+                            print("Updating records...")
 
                         kwargs["offset"] = metadata.offset
 
@@ -338,7 +355,8 @@ class Client(object):
 
             # Fetch the whole dataset from the NYC OpenData servers
             if fetch_remote:
-                print(f"Downloading {metadata.name} dataset...")
+                if verbose:
+                    print(f"Downloading {metadata.name} dataset...")
                 results = self._client.get_all(metadata.endpoint, **kwargs)
                 df = pd.DataFrame.from_records(results)
                 metadata.last_query = kwargs
