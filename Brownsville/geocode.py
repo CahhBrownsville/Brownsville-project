@@ -13,7 +13,9 @@ class GeocodeClient:
 
     BASE_URL = "http://www.mapquestapi.com/geocoding/v1/address"
 
-    def __init__(self, token:str) -> None:
+    def __init__(self, token:str=None) -> None:
+        if not token:
+            token = TOKEN
         self.__token = token
 
 
@@ -43,6 +45,34 @@ class GeocodeClient:
         lat, lng = results["latLng"].values()
 
         return lat, lng
+
+    def get_zip(self, street_address:str, city:str, state:str) -> str:
+        """
+        Makes a geocode API call to fetch the zip code of the specified address.
+
+        Paramters:
+        ----------
+        street_address: `str`
+            Street name to search the coordinates.
+        city: `str`
+            City name to search the coordinates.
+        state: `str`
+            State name to search the coordinates.
+        """
+        try:
+            url = self.parse_query(
+                key=self.__token,
+                location=[street_address, city, state]
+            )
+
+            response = requests.get(url)
+            
+            results = json.loads(response.content)["results"][0]["locations"][0]
+            zip_code = results["postalCode"][:5]
+
+            return zip_code
+        except:
+            print(street_address, city, state)
 
     def parse_query(self, **kwargs) -> str:
         """
