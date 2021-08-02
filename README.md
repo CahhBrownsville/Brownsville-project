@@ -19,6 +19,7 @@ This section will guide you on how to get the project running.
   
 ## Instalation
 1. Open the command prompt using <img src="https://cdn.icon-icons.com/icons2/813/PNG/512/windows-10_icon-icons.com_66166.png" width="15em" style="padding-top:20px;"> + R button and writing `cmd` in the run window. If you are using mac, open terminal.
+
 ![](/documentation/images/run.png)
 2. Clone the repository by typing in the following command:
 ```
@@ -39,24 +40,38 @@ pip install -r requirements.txt
 This project requires a set of app tokens that ensure that the `Brownsville API` can communicate with some of the services required to function properly. To obtain the app tokens, follow these steps: 
 
 1. Open the `config.yaml` file using any text editor. Once opened, the file should look like this: 
+
    ![](documentation/images/config.png)
+
    **Important note:** do **NOT** change the spaces in the file; only change the text inside the double quoutes. Adding or deleting spaces outside of the quoutes can potentially prevent the `Brownsville API` from reading the file properly.
 2. Visit the NYC Open Data website [here](nycopendata) and **sign up** for a new account. 
 3. After the account is created, press `Edit Profile -> Developer Settings -> Create New App Token`. The following window should pop up:
+
 ![](documentation/images/socrata.png)
+
 Fill in the required fields as shown in the image. Leave the fields blank.
 4. Press `save` and copy the created app token from the app token section. For example: 
+
 ![](documentation/images/app-token-socrata.png)
+
 5. Paste the app token to the `config.yaml` file, as well as the login information (email and password)
+
 ![](documentation/images/config-2.png)
+
 6. Visit the MapQuest website [here](mapquest) and **sign up** for a new account. 
 7. After the account is created, press `Manage Keys -> Create a New Key`. The following window should pop up:
+
 ![](documentation/images/mapquest.png)
+
 Press `Create App` after filling in the app name. 
 8. After creating the app, you will be brought back to the `Manage Keys` site. Press the toggle button located to the right and copy the `Consumer Key`. 
+
 ![](documentation/images/app-token-mapquest.png)
+
 9. Paste the `Consumer key` to the `config.yaml` file. It should end up looking something like this: 
+
 ![](documentation/images/config-3.png)
+
 10. Save the changes in the `config.yaml` file. 
 # Documentation
 The `Brownsville API` code documentation is located on the wiki section of the repository. To visis the wiki, press the wiki button on the top navigation bar of the repository or click [here](wiki).
