@@ -385,11 +385,7 @@ class Brownsville:
         building_id: `int`
             ID of the building in the dataset.
         """
-        # common_complaints = self.get_feature_occurrences_by_building(
-        #     building_id, by=["majorcategory", "minorcategory"], find_all=True
-        # )
 
-        # return int(common_complaints.values.sum())
         return (self.data["buildingid"] == building_id).sum()
 
     def get_common_complaint_categories(self, building_id: int) -> int:
@@ -502,7 +498,6 @@ class Brownsville:
             n=5
         )
 
-        # folium.LayerControl().add_to(nyc_map)
         glc.GroupedLayerControl({}, {
             "Address locations": {
                 "All years":  feature_group_1,
@@ -747,8 +742,6 @@ class Brownsville:
             street, city, zip_code = value[1]
             address = " ".join((street, city, str(zip_code)))
             lat, lng = address_to_coord[address]
-
-            # print(address, address in address_to_coord)
 
             latitudes[i] = lat
             longitudes[i] = lng
