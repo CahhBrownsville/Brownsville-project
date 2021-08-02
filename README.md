@@ -21,6 +21,7 @@ This section will guide you on how to get the project running.
 1. Open the command prompt using <img src="https://cdn.icon-icons.com/icons2/813/PNG/512/windows-10_icon-icons.com_66166.png" width="15em" style="padding-top:20px;"> + R button and writing `cmd` in the run window. If you are using mac, open terminal.
 
 ![](/documentation/images/run.png)
+
 2. Clone the repository by typing in the following command:
 ```
 git clone https://github.com/alixlm19/Brownsville-project.git
@@ -44,6 +45,7 @@ This project requires a set of app tokens that ensure that the `Brownsville API`
    ![](documentation/images/config.png)
 
    **Important note:** do **NOT** change the spaces in the file; only change the text inside the double quoutes. Adding or deleting spaces outside of the quoutes can potentially prevent the `Brownsville API` from reading the file properly.
+
 2. Visit the NYC Open Data website [here](nycopendata) and **sign up** for a new account. 
 3. After the account is created, press `Edit Profile -> Developer Settings -> Create New App Token`. The following window should pop up:
 
