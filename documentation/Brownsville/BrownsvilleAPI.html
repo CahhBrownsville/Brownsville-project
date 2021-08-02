@@ -28,17 +28,19 @@
 </summary>
 <pre><code class="python">import json
 import os
+from datetime import date
 from typing import Any, List, Tuple, Union
 
-from branca.element import CssLink
 import folium
 import folium.plugins
 import numpy as np
 import pandas as pd
 import yaml
+from branca.element import CssLink, JavascriptLink
 
 from .data_api import Client
 from .geocode import GeocodeClient
+from .vendors.GroupedLayerControl import grouped_layer_control as glc
 
 
 class InvalidColumnNameError(Exception):
@@ -48,34 +50,54 @@ class InvalidColumnNameError(Exception):
 
 class Brownsville:
     def __init__(
-        self, path: str = &#34;./data/brownsville/&#34;, force_load: bool = False
+        self, path: str = &#34;./data/brownsville/&#34;, force_load: bool = False,
+        update_map: bool = True, verbose=True,
     ) -&gt; None:
         self.path = path
+        self.verbose = verbose
 
         # Create the directory where the dataset will be stored
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
         self.config = self.__load_config()
-        self.geocode_client = GeocodeClient(self.config[&#34;geocode&#34;][&#34;app_token&#34;])
+        self.geocode_client = GeocodeClient(
+            self.config[&#34;geocode&#34;][&#34;app_token&#34;])
 
         self.__load_dataset(force_load)
-        self.__translate_ids()
-        self.__parse_datatypes()
         self.__set_addresses()
-
+        self.__fill_zip_codes()
         self.__get_spatial_information()
+        self.__get_BBL()
 
-        # self.__filter_no_complaints()
+        self.__load_pluto()
 
-        self._map = self.__update_map()
+        self.__parse_datatypes()
+        self.__fill_na()
+        self.__translate_ids()
+        self.__filter_no_complaints()
+
+        self.__filter_descriptions()
+
+        self._map = None
+        if update_map:
+            self._map = self.__update_map()
+
+        self.save(overwrite_file=True)
 
     @property
     def buildings(self) -&gt; np.ndarray:
         &#34;&#34;&#34;
-        Returns an NumPy ndarray with the set of unique buildings in the dataset by building id.
+        Returns an NumPy ndarray with the set of unique buildings in the dataset.
         &#34;&#34;&#34;
         return self.data[&#34;buildingid&#34;].unique()
+
+    @property
+    def addresses(self) -&gt; np.ndarray:
+        &#34;&#34;&#34;
+        Returns an NumPy ndarray with the set of unique addresses in the dataset.
+        &#34;&#34;&#34;
+        return self.data[&#34;address&#34;].unique()
 
     @property
     def complaints(self) -&gt; pd.Series:
@@ -84,15 +106,70 @@ class Brownsville:
         number of complaints reported.
         &#34;&#34;&#34;
 
-        # complaints = np.zeros(len(self.buildings))
-        # for i, building_id in enumerate(self.buildings):
-        #     num_of_complaints = self.complaint_number(building_id)
-        #     complaints[i] = num_of_complaints
-
-        # df = pd.DataFrame({&#34;buildingid&#34;: self.buildings, &#34;complaints&#34;: complaints})
-
-        # return df
         return self.data[&#34;buildingid&#34;].value_counts()
+
+    def get_record_by_building_id(self, building_id: int) -&gt; pd.DataFrame:
+        &#34;&#34;&#34;
+        Get the building information corresponding to the first occurence of the passed building id.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            ID used as key to search the dataframe. 
+        &#34;&#34;&#34;
+        if not building_id:
+            raise IndexError(&#34;A building id  must be passed.&#34;) 
+
+        index = self.data[&#34;buildingid&#34;].values.searchsorted(building_id)
+        return self.data.iloc[index]
+
+    def get_records_by_address(self, address:str, copy:bool=False) -&gt; pd.Series:
+        &#34;&#34;&#34;
+        Get the building information corresponding to the first occurence of the passed address.
+
+        Parameters:
+        -----------
+        address: `str`
+            Address used as key to search the dataframe. 
+        &#34;&#34;&#34;
+        records = self.data[self.data[&#34;address&#34;] == address]
+        if copy:
+            return records.copy()
+
+        return records
+
+    def complaint_to_residential_unit_ratio(self, building_id: int) -&gt; float:
+        &#34;&#34;&#34;
+        Returns a number representing the ratio between the compaints reported from a building
+        to the number residential units in said building.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            Building ID to calculate the complaints to residential units ratio.
+        &#34;&#34;&#34;
+
+        num_of_complaints = self.complaint_number(building_id)
+        residential_units = self.get_residential_units(building_id)
+
+        if residential_units == 0:
+            return -1
+
+        return round(num_of_complaints / residential_units, 3)
+
+    def get_residential_units(self, building_id: int) -&gt; int:
+        &#34;&#34;&#34;
+        Returns an integer representing the number of residential units by building id or address.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            ID used as key to search the dataframe.
+        &#34;&#34;&#34;
+
+        row = self.get_record_by_building_id(building_id)
+
+        return row[&#34;unitsres&#34;]
 
     def get_date_range(self, by: str = &#34;status&#34;) -&gt; Tuple[pd.Timestamp, pd.Timestamp]:
         &#34;&#34;&#34;
@@ -111,92 +188,16 @@ class Brownsville:
 
         return self.data[by].min(), self.data[by].max()
 
-    def records_by_season(self) -&gt; Tuple[List, List]:
+    def get_building_age(self, building_id:int) -&gt; int:
         &#34;&#34;&#34;
-        Return the number of complaints reported by season.
-        &#34;&#34;&#34;
-        date_counts = self.records_by_date(period=&#34;month&#34;)
-
-        seasons = [&#34;Winter&#34;, &#34;Spring&#34;, &#34;Summer&#34;, &#34;Autumn&#34;]
-        values = [
-            date_counts.loc[[&#34;Jan&#34;, &#34;Feb&#34;, &#34;Mar&#34;]].sum(),
-            date_counts.loc[[&#34;Apr&#34;, &#34;May&#34;, &#34;Jun&#34;]].sum(),
-            date_counts.loc[[&#34;Jul&#34;, &#34;Aug&#34;, &#34;Sep&#34;]].sum(),
-            date_counts.loc[[&#34;Oct&#34;, &#34;Nov&#34;, &#34;Dec&#34;]].sum(),
-        ]
-        print(f&#34;{seasons[0]}: {values[0]}&#34;)
-        print(f&#34;{seasons[1]}: {values[1]}&#34;)
-        print(f&#34;{seasons[2]}: {values[2]}&#34;)
-        print(f&#34;{seasons[3]}: {values[3]}&#34;)
-
-        return seasons, values
-
-    def records_by_date(
-        self, period: str = &#34;month&#34;, step: int = 1, num_years: int = 0
-    ) -&gt; set:
-        &#34;&#34;&#34;
-        Return the number of complaints reported on a monthly or yearly basis.
+        Returns an integer representing the age of the building, provided its building id. 
 
         Parameters:
         -----------
-        period: `str`
-            Type of time period to return the number of complaint reported.
-        step: `int`
-            Number of year intervals to separate the data. *Only works if period is `year`*
-        num_years `int`
-            Number of past years to query the data. *Only works if period is `year`*
-
-        TODO: FIX TIME PERIODS
+        building_id: `int`
+            ID used as key to search the dataframe.
         &#34;&#34;&#34;
-        if period == &#34;month&#34;:
-            dates = self.data[&#34;statusdate&#34;].dt.month.astype(&#34;Int64&#34;)
-            date_counts = dates.value_counts()
-            date_counts = date_counts.sort_index()
-
-            date_counts.index = pd.Index(
-                [
-                    &#34;Jan&#34;,
-                    &#34;Feb&#34;,
-                    &#34;Mar&#34;,
-                    &#34;Apr&#34;,
-                    &#34;May&#34;,
-                    &#34;Jun&#34;,
-                    &#34;Jul&#34;,
-                    &#34;Aug&#34;,
-                    &#34;Sep&#34;,
-                    &#34;Oct&#34;,
-                    &#34;Nov&#34;,
-                    &#34;Dec&#34;,
-                ]
-            )
-
-        if period == &#34;year&#34;:
-            dates = self.data[&#34;statusdate&#34;].dt.year.astype(&#34;Int64&#34;)
-
-            date_counts = dates.value_counts()
-            date_counts = date_counts.sort_index()
-
-            if num_years &gt; len(date_counts):
-                raise &#34;The number of years must be less than the number of available years in the dataset&#34;
-
-            if num_years &gt; step &gt;= 0:
-                date_counts = date_counts.sort_index(ascending=False)
-
-                years = []
-
-                for i in range(0, num_years, step):
-                    start = i
-                    end = start + step
-
-                    if len(date_counts) &gt; end:
-                        end = len(date_counts) - 1
-
-                    year_range = date_counts.iloc[i : i + step].sort_index()
-                    years.append(year_range)
-
-                return list(reversed(years))
-
-        return date_counts
+        return date.today().year - self.get_record_by_building_id(building_id)[&#34;yearbuilt&#34;]
 
     def get_feature_occurrences_by_building(
         self,
@@ -319,6 +320,93 @@ class Brownsville:
 
             common_categories = common_categories[:n]
         return common_categories
+                
+
+    def records_by_season(self) -&gt; Tuple[List, List]:
+        &#34;&#34;&#34;
+        Return the number of complaints reported by season.
+        &#34;&#34;&#34;
+        date_counts = self.records_by_date(period=&#34;month&#34;)
+
+        seasons = [&#34;Winter&#34;, &#34;Spring&#34;, &#34;Summer&#34;, &#34;Autumn&#34;]
+        values = [
+            date_counts.loc[[&#34;Jan&#34;, &#34;Feb&#34;, &#34;Mar&#34;]].sum(),
+            date_counts.loc[[&#34;Apr&#34;, &#34;May&#34;, &#34;Jun&#34;]].sum(),
+            date_counts.loc[[&#34;Jul&#34;, &#34;Aug&#34;, &#34;Sep&#34;]].sum(),
+            date_counts.loc[[&#34;Oct&#34;, &#34;Nov&#34;, &#34;Dec&#34;]].sum(),
+        ]
+
+        if self.verbose:
+            for i in range(len(seasons)):
+                print(f&#34;{seasons[i]}: {values[i]}&#34;)
+
+        return seasons, values
+
+    def records_by_date(
+        self, period: str = &#34;month&#34;, step: int = 1, num_years: int = 0
+    ) -&gt; set:
+        &#34;&#34;&#34;
+        Return the number of complaints reported on a monthly or yearly basis.
+
+        Parameters:
+        -----------
+        period: `str`
+            Type of time period to return the number of complaint reported.
+        step: `int`
+            Number of year intervals to separate the data. *Only works if period is `year`*
+        num_years `int`
+            Number of past years to query the data. *Only works if period is `year`*
+
+        &#34;&#34;&#34;
+        if period == &#34;month&#34;:
+            dates = self.data[&#34;statusdate&#34;].dt.month.astype(&#34;Int64&#34;)
+            date_counts = dates.value_counts()
+            date_counts = date_counts.sort_index()
+
+            date_counts.index = pd.Index(
+                [
+                    &#34;Jan&#34;,
+                    &#34;Feb&#34;,
+                    &#34;Mar&#34;,
+                    &#34;Apr&#34;,
+                    &#34;May&#34;,
+                    &#34;Jun&#34;,
+                    &#34;Jul&#34;,
+                    &#34;Aug&#34;,
+                    &#34;Sep&#34;,
+                    &#34;Oct&#34;,
+                    &#34;Nov&#34;,
+                    &#34;Dec&#34;,
+                ]
+            )
+
+        if period == &#34;year&#34;:
+            dates = self.data[&#34;statusdate&#34;].dt.year.astype(&#34;Int64&#34;)
+
+            date_counts = dates.value_counts()
+            date_counts = date_counts.sort_index()
+
+            if num_years &gt; len(date_counts):
+                raise &#34;The number of years must be less than the number of available years in the dataset&#34;
+
+            if num_years &gt; step &gt;= 0:
+                date_counts = date_counts.sort_index(ascending=False)
+
+                years = []
+
+                for i in range(0, num_years, step):
+                    start = i
+                    end = start + step
+
+                    if len(date_counts) &gt; end:
+                        end = len(date_counts) - 1
+
+                    year_range = date_counts.iloc[i: i + step].sort_index()
+                    years.append(year_range)
+
+                    return list(reversed(years))
+
+        return date_counts
 
     def complaint_number(self, building_id: int) -&gt; int:
         &#34;&#34;&#34;
@@ -329,11 +417,7 @@ class Brownsville:
         building_id: `int`
             ID of the building in the dataset.
         &#34;&#34;&#34;
-        # common_complaints = self.get_feature_occurrences_by_building(
-        #     building_id, by=[&#34;majorcategory&#34;, &#34;minorcategory&#34;], find_all=True
-        # )
 
-        # return int(common_complaints.values.sum())
         return (self.data[&#34;buildingid&#34;] == building_id).sum()
 
     def get_common_complaint_categories(self, building_id: int) -&gt; int:
@@ -366,7 +450,7 @@ class Brownsville:
             Flag indicating whether the file should be overwritten or not.
         &#34;&#34;&#34;
         if not filename:
-            filename = self.path + &#34;brownsville.csv&#34;
+            filename = os.path.join(self.path, &#34;brownsville.csv&#34;)
 
         if os.path.exists(filename):
             if not overwrite_file:
@@ -385,6 +469,8 @@ class Brownsville:
         save_map: `bool`
             Save the map to an `.html` file.
         &#34;&#34;&#34;
+        if self._map:
+            return self._map
 
         nyc_longitude, nyc_latitude = 40.68424658435642, -73.91630313916588
 
@@ -398,65 +484,151 @@ class Brownsville:
         columns = [&#34;buildingid&#34;, &#34;address&#34;, &#34;latitude&#34;, &#34;longitude&#34;]
         unique_addresses = self.data[columns].groupby(columns).size()
 
-        two_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(self.data[&#34;statusdate&#34;].dt.year) - 2)
+        two_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(
+            self.data[&#34;statusdate&#34;].dt.year) - 2)
         data_two_years = self.data[two_year_filter][columns]
         unique_addresses_two_years = data_two_years.groupby(columns).size()
 
-        five_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(self.data[&#34;statusdate&#34;].dt.year) - 5)
+        five_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(
+            self.data[&#34;statusdate&#34;].dt.year) - 5)
         data_five_years = self.data[five_year_filter][columns]
         unique_addresses_five_years = data_five_years.groupby(columns).size()
 
         # Import the map marker style
-        nyc_map.get_root().header.add_child(CssLink(&#34;./assets/css/foliumStyle.css&#34;))
+        nyc_map.get_root().header.add_child(CssLink(&#34;./static/style/foliumStyle.css&#34;))
+        nyc_map.get_root().header.add_child(JavascriptLink(
+            &#34;./static/js/leaflet.groupedlayercontrol.min.js&#34;))
 
-        self.__create_marker_cluster(
-            unique_addresses,
-            name=&#34;Address locations&#34;
+        feature_group_1 = self.__create_marker_feature_group(
+            name=&#34;Address Locations&#34;,
+            data=unique_addresses,
+            folium_map=nyc_map
+        )
+        feature_group_2 = self.__create_marker_feature_group(
+            name=&#34;Address locations (two years)&#34;,
+            data=unique_addresses_two_years,
+            folium_map=nyc_map
+        )
+        feature_group_3 = self.__create_marker_feature_group(
+            name=&#34;Address locations (five years)&#34;,
+            data=unique_addresses_five_years,
+            folium_map=nyc_map
+        )
+
+        feature_group_4 = self.__create_heatmap_feature_group(
+            name=&#34;Brownsville heatmap&#34;,
+            folium_map=nyc_map
+        )
+        feature_group_5 = self.__create_heatmap_feature_group(
+            name=&#34;Brownsville heatmap (two years)&#34;,
+            folium_map=nyc_map,
+            n=2
+        )
+        feature_group_6 = self.__create_heatmap_feature_group(
+            name=&#34;Brownsville heatmap (five years)&#34;,
+            folium_map=nyc_map,
+            n=5
+        )
+
+        glc.GroupedLayerControl({}, {
+            &#34;Address locations&#34;: {
+                &#34;All years&#34;:  feature_group_1,
+                &#34;Two years&#34;:  feature_group_2,
+                &#34;Five years&#34;: feature_group_3},
+            &#34;Heatmap&#34;: {
+                &#34;All years&#34;: feature_group_4,
+                &#34;Two years&#34;: feature_group_5,
+                &#34;Five years&#34;: feature_group_6
+            }},
+            [&#34;Address locations&#34;, &#34;Heatmap&#34;]
         ).add_to(nyc_map)
-        self.__create_marker_cluster(
-            unique_addresses_two_years,
-            name=&#34;Address locations (two years)&#34;
-        ).add_to(nyc_map)
-        self.__create_marker_cluster(
-            unique_addresses_five_years,
-            name=&#34;Address locations (five years)&#34;
-        ).add_to(nyc_map)
-
-        # Get the coordinates for each building
-        lats = self.data[&#34;latitude&#34;].values
-        lons = self.data[&#34;longitude&#34;].values
-
-        # Calculate and 0-1 normalize heatmap weights
-        complaints_per_building = self.complaints
-        weight_f = lambda b_id: complaints_per_building[b_id]
-        weights = self.data[&#34;buildingid&#34;].apply(weight_f).values
-        weights = (weights - min(weights)) / (max(weights) - min(weights))
-
-        folium.plugins.HeatMap(
-            data=list(zip(lats, lons, weights)),
-            name=&#34;Brownsville heat map&#34;,
-            min_opacity=0.3,
-            max_opacity=0.7,
-        ).add_to(nyc_map)
-
-        folium.LayerControl().add_to(nyc_map)
 
         # Save the map to an HTML file
         if save_map:
-            filename = os.path.join(self.path, &#34;brownsville.html&#34;)
+            filename = os.path.join(os.getcwd(), &#34;brownsville.html&#34;)
+
+            # filename = os.path.join(path)
             nyc_map.save(outfile=filename)
 
         return nyc_map
 
+    def __create_heatmap_feature_group(
+        self, name: str, folium_map: folium.Map, n: int = None
+    ) -&gt; folium.FeatureGroup:
+        &#34;&#34;&#34;
+        Returns a feature group with a heat map of the locations in the provided pandas DataFrame.
+
+        Parameters:
+        -----------
+        name: `str`
+            Name of the of feature group.
+        folium_map: `folium.Map`
+            Folium map where the heatmap feature group will be added.
+        n: `int`
+            Number of years to look extract from the provided dataframe.
+        &#34;&#34;&#34;
+
+        data = self.data
+        if n:
+            n_year_filter = (data[&#34;statusdate&#34;].dt.year ==
+                             max(data[&#34;statusdate&#34;].dt.year) - n)
+            data = data[n_year_filter]
+
+        # Get the coordinates for each building
+        lats = data[&#34;latitude&#34;].values
+        lons = data[&#34;longitude&#34;].values
+
+        # Calculate and 0-1 normalize heatmap weights
+        complaints_per_building = data[&#34;buildingid&#34;].value_counts()
+        def weight_f(b_id): return complaints_per_building[b_id]
+        weights = data[&#34;buildingid&#34;].apply(weight_f).values
+        weights = (weights - min(weights)) / (max(weights) - min(weights))
+
+        feature_group = folium.FeatureGroup(name=name, show=True)
+        folium.plugins.HeatMap(
+            data=list(zip(lats, lons, weights)),
+            name=name,
+            min_opacity=0.3,
+            max_opacity=0.7,
+        ).add_to(feature_group)
+        feature_group.add_to(folium_map)
+
+        return feature_group
+
+    def __create_marker_feature_group(
+        self, name: str, data: pd.DataFrame, folium_map: folium.Map
+    ) -&gt; folium.FeatureGroup:
+        &#34;&#34;&#34;
+        Returns a feature group with a marker cluster of the locations in the provided pandas DataFrame.
+
+        Parameters:
+        -----------
+        name: `str`
+            Name of the of feature group.
+        data: `folium.Map`
+            Folium map where the heatmap feature group will be added.
+        n: `int`
+            Number of years to look extract from the provided dataframe.
+        &#34;&#34;&#34;
+
+        feature_group = folium.FeatureGroup(name=name, show=True)
+        self.__create_marker_cluster(
+            data,
+            name=name
+        ).add_to(feature_group)
+        feature_group.add_to(folium_map)
+
+        return feature_group
+
     def __create_marker_cluster(
-        self, df: pd.DataFrame, name: str = &#34;name not specified&#34;
+        self, data: pd.DataFrame, name: str = &#34;name not specified&#34;
     ) -&gt; folium.plugins.MarkerCluster:
         &#34;&#34;&#34;
         Accepts a Folium map in which custom leaflet marker cluster are added.
 
         Parameters:
         -----------
-        df: `pd.DataFrame`
+        data: `pd.DataFrame`
             Pandas DataFrame used as reference for the marker clusters.
         name: `str`
             Name of the marker cluster
@@ -472,27 +644,54 @@ class Brownsville:
             name=name, icon_create_function=icon_create_function
         )
 
-        for building_id, address, latitude, longitude in df.index:
+        for building_id, address, latitude, longitude in data.index:
+
+            building_info = self.get_record_by_building_id(building_id)
 
             number_of_reports = self.complaint_number(building_id)
             major_category, minor_category = self.get_common_complaint_categories(
                 building_id
             )
             complaint = f&#34;{major_category.title()} - {minor_category.title()}&#34;
+            complaint_to_runits = self.complaint_to_residential_unit_ratio(building_id)
+            if complaint_to_runits == -1:
+                complaint_to_runits = 0
+
+            owner = building_info[&#39;ownername&#39;]
+            if pd.isna(building_info[&#39;ownername&#39;]):
+                owner = &#34;UNKNOWN&#34;
+            
+            age_info = f&#34;{building_info[&#39;yearbuilt&#39;]} ({self.get_building_age(building_id)} years old)&#34;
+            if building_info[&#34;yearbuilt&#34;] == 0:
+                age_info = &#34;UNKNOWN&#34;
+
+            alterations = building_info[&#34;yearalter1&#34;]
             iframe = folium.IFrame(
                 html=f&#34;&#34;&#34;
-                    &lt;b&gt;{address}&lt;/b&gt;
-                    &lt;br&gt;
-                    &lt;br&gt;
-                    &lt;b&gt;Number of reports:&lt;/b&gt; {number_of_reports}
-                    &lt;br&gt;
-                    &lt;b&gt;Building ID:&lt;/b&gt; {building_id}
-                    &lt;br&gt;
-                    &lt;b&gt;Latitude:&lt;/b&gt; {latitude}
-                    &lt;br&gt;
-                    &lt;b&gt;Longitude:&lt;/b&gt; {longitude}
-                    &lt;br&gt;
-                    &lt;b&gt;Most frequent complaint:&lt;/b&gt; {complaint}
+                    &lt;div id=&#39;custom-popup&#39;&gt;
+                        &lt;b&gt;{address}&lt;/b&gt;
+                        &lt;br&gt;
+                        &lt;br&gt;
+                        &lt;b&gt;Building ID:&lt;/b&gt; {building_id}
+                        &lt;br&gt;
+                        &lt;b&gt;Owner:&lt;/b&gt; {owner}
+                        &lt;br&gt;
+                        &lt;b&gt;Owner type:&lt;/b&gt; {building_info[&#39;ownertypelong&#39;]}
+                        &lt;br&gt;
+                        &lt;b&gt;Yeart built:&lt;/b&gt; {age_info}
+                        &lt;br&gt;
+                        &lt;b&gt;Latitude:&lt;/b&gt; {latitude}
+                        &lt;br&gt;
+                        &lt;b&gt;Longitude:&lt;/b&gt; {longitude}
+                        &lt;br&gt;
+                        &lt;b&gt;Number of residential units:&lt;/b&gt; {building_info[&#39;unitsres&#39;]}
+                        &lt;br&gt;
+                        &lt;b&gt;Number of complaints:&lt;/b&gt; {number_of_reports}
+                        &lt;br&gt;
+                        &lt;b&gt;Complaint to residential units ratio:&lt;/b&gt; {complaint_to_runits}
+                        &lt;br&gt;
+                        &lt;b&gt;Most frequent complaint:&lt;/b&gt; {complaint}
+                    &lt;/div&gt;
 
                     &lt;style&gt;
                         html * {{
@@ -500,12 +699,18 @@ class Brownsville:
                             color: #000 !important;
                             font-family: Arial !important;
                         }}
+
+                        #custom-popup {{
+                            min-width: 450px;
+                            min-height: 450px;
+                        }}
                     &lt;/style&gt;
                 &#34;&#34;&#34;
             )
 
-            popup = folium.Popup(iframe, min_width=350, max_width=350, parse_html=True)
-
+            popup = folium.Popup(iframe, min_width=500,
+                                 max_width=500, parse_html=True)
+            
             marker = folium.Marker(
                 location=[latitude, longitude],
                 popup=address,
@@ -519,11 +724,11 @@ class Brownsville:
 
         return marker_cluster
 
-    def __update_map(self):
+    def __update_map(self) -&gt; folium.Map:
         &#34;&#34;&#34;
         Helper function to update map when instantiating the class.
         &#34;&#34;&#34;
-        self.display_map(save_map=True)
+        return self.display_map(save_map=True)
 
     def __filter_no_complaints(self) -&gt; None:
         &#34;&#34;&#34;
@@ -544,16 +749,22 @@ class Brownsville:
         columns = [&#34;address&#34;, &#34;borough&#34;, &#34;zip&#34;]
 
         # Read the translation table from local storage if exists
-        filename = self.path + &#34;address_table.json&#34;
+        filename = os.path.join(self.path, &#34;address_table.json&#34;)
         if os.path.exists(filename):
             with open(filename, &#34;r&#34;) as f:
                 address_to_coord = json.load(f)
         else:
+
             unique_addresses = self.data[columns].groupby(columns).size()
             address_to_coord = {}
             for street, city, zip_code in unique_addresses.index:
+                if pd.isnull(zip_code):
+                    zip_code == self.geocode_client.get_zip(
+                        street, city, state)
                 address = &#34; &#34;.join((street, city, str(zip_code)))
-                coord = self.geocode_client.get_lat_lng(street, city, state, zip_code)
+
+                coord = self.geocode_client.get_lat_lng(
+                    street, city, state, zip_code)
                 address_to_coord[address] = coord
 
             with open(filename, &#34;w&#34;) as f:
@@ -575,31 +786,62 @@ class Brownsville:
         self.data[&#34;latitude&#34;] = latitudes
         self.data[&#34;longitude&#34;] = longitudes
 
+    def __fill_zip_codes(self) -&gt; None:
+
+        columns = [&#34;address&#34;, &#34;borough&#34;, &#34;zip&#34;]
+
+        def get_zip(address): return self.geocode_client.get_zip(
+            address[0], address[1], &#34;NY&#34;)
+
+        self.data[&#34;zip&#34;] = self.data[&#34;zip&#34;].astype(&#34;Int64&#34;)
+        zip_filter = self.data[&#34;zip&#34;].isna()
+        missing_zip = self.data[columns][zip_filter].copy()
+        zip_codes = missing_zip.apply(get_zip, axis=1).values
+
+        for index, zip_code in zip(self.data[&#34;zip&#34;][zip_filter].index, zip_codes):
+            self.data[&#34;zip&#34;].iloc[index] = zip_code
+
     def __set_addresses(self) -&gt; None:
         &#34;&#34;&#34;
         Concatenates the house number and street name into a single columns.
         &#34;&#34;&#34;
-        self.data[&#34;address&#34;] = self.data[&#34;housenumber&#34;] + &#34; &#34; + self.data[&#34;streetname&#34;]
+        self.data[&#34;address&#34;] = self.data[&#34;housenumber&#34;] + \
+            &#34; &#34; + self.data[&#34;streetname&#34;]
 
     def __parse_datatypes(self) -&gt; None:
         &#34;&#34;&#34;
         Parses the dataset features to their appropiate datatypes.
         &#34;&#34;&#34;
-        self.data[&#34;unittypeid&#34;] = self.data[&#34;unittypeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;spacetypeid&#34;] = self.data[&#34;spacetypeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;typeid&#34;] = self.data[&#34;typeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;majorcategoryid&#34;] = self.data[&#34;majorcategoryid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;minorcategoryid&#34;] = self.data[&#34;minorcategoryid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;codeid&#34;] = self.data[&#34;codeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;receiveddate&#34;] = self.data[&#34;receiveddate&#34;].astype(&#34;datetime64&#34;)
-        self.data[&#34;statusdate&#34;] = self.data[&#34;statusdate&#34;].astype(&#34;datetime64&#34;)
+        convert_dict = {
+            &#34;unittypeid&#34;: &#34;Int64&#34;,
+            &#34;spacetypeid&#34;: &#34;Int64&#34;,
+            &#34;typeid&#34;: &#34;Int64&#34;,
+            &#34;majorcategoryid&#34;: &#34;Int64&#34;,
+            &#34;minorcategoryid&#34;: &#34;Int64&#34;,
+            &#34;codeid&#34;: &#34;Int64&#34;,
+            &#34;unitsres&#34;: &#34;Int64&#34;,
+            &#34;unitstotal&#34;: &#34;Int64&#34;,
+            &#34;numbldgs&#34;: &#34;Int64&#34;,
+            &#34;yearbuilt&#34;: &#34;Int64&#34;,
+            &#34;yearalter1&#34;: &#34;Int64&#34;,
+            &#34;yearalter2&#34;: &#34;Int64&#34;,
+            &#34;receiveddate&#34;: &#34;datetime64&#34;,
+            &#34;statusdate&#34;: &#34;datetime64&#34;
+        }
 
-    def __load_dataset(self, force_load: bool = False) -&gt; None:
+        try:
+            self.data = self.data.astype(convert_dict)
+        except:
+            print(&#34;Conversion error&#34;)
+
+    def __load_dataset(
+        self, force_load: bool = False
+    ) -&gt; bool:
         &#34;&#34;&#34;
         Uses the Scoracte API custom client to create the Bronwsville dataset.
         &#34;&#34;&#34;
 
-        with Client(*self.config[&#34;sodapy&#34;].values(), data_path=self.path) as c:
+        with Client(*self.config[&#34;sodapy&#34;].values(), data_path=self.path, timeout=40) as c:
 
             update_due = (
                 c.metadata_complaint_problems.cache_date
@@ -611,10 +853,18 @@ class Brownsville:
 
             filepath = os.path.join(self.path, c.metadata_brownsville.filename)
             if not force_load and not update_due and os.path.exists(filepath):
-                print(&#34;Loading cached dataset...&#34;)
+                if self.verbose:
+                    print(&#34;Loading cached dataset...&#34;)
                 self.data = pd.read_csv(filepath, index_col=0)
+
+                self.fetch_remote = False
             else:
-                self.data = c.load_brownsville(fetch_all=True)
+                self.data = c.load_brownsville(
+                    fetch_all=True, verbose=self.verbose)
+                self.fetch_remote = True
+
+            self.data.sort_values(by=&#39;buildingid&#39;, inplace=True)
+            self.data.reset_index()
 
     def __translate_ids(self) -&gt; None:
         &#34;&#34;&#34;
@@ -626,6 +876,95 @@ class Brownsville:
                 value = translations[key]
                 self.data[key] = self.data[key + &#34;id&#34;].map(value)
 
+    def __filter_descriptions(self) -&gt; None:
+        &#34;&#34;&#34;
+        Parses the dataset&#39;s status description to a shorter version. 
+        &#34;&#34;&#34;
+        descriptions = {
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. No violations were issued. The complaint has been closed.&#34;: &#34;Inspected; no violations issued&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. Violations were issued. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Inspected; violations issued&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to inspect the following conditions. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Unable to gain access&#34;,
+            &#34;More than one complaint was received for this building-wide condition.This complaint status is for the initial complaint. The Department of Housing Preservation and Development contacted an occupant of the apartment and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;More than one complaint was received for this building-wide condition.This complaint status is for the initial complaint. The Department of Housing Preservation and Development contacted a tenant in the building and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development responded to a complaint of no heat or hot water and was advised by a tenant in the building that heat and hot water had been restored. If the condition still exists, please file a new complaint.&#34;: &#34;Single complaint; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to your apartment or others in the building to inspect for a lack of heat or hot water. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development contacted an occupant of the apartment and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Inspected; no violations issued&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. Violations were previously issued for these conditions. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Inspected; violations previously issued&#34;,
+            &#34;The Department of Housing Preservation and Development was unable to access the rooms where the following conditions were reported. No violations were issued. The complaint has been closed.&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development contacted a tenant in the building and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Single complaint; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to your apartment to inspect for a lack of heat or hot water. However, HPD was able to verify that heat or hot water was inadequate by inspecting another apartment and a violation was issued. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Unable to gain access; violation issued&#34;,
+            &#34;The following complaint conditions are still open. HPD may attempt to contact you to verify the correction of the condition or may conduct an inspection.&#34;: &#34;Complaint remains open&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to inspect the conditions. If the conditions still exist and an inspection is required, please contact the borough office with your complaint number at&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development responded to a complaint of no heat or hot water. Heat was not required at the time of the inspection. No violations were issued. If the condition still exists, please file a new complaint.&#34;: &#34;Inspected; no violations issued&#34;,
+            &#34;More than one complaint was received for this building-wide condition. This complaint status is for the initial complaint.The Department of Housing Preservation and Development contacted an occupant of the apartment and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;More than one complaint was received for this building-wide condition. This complaint status is for the initial complaint.The Department of Housing Preservation and Development contacted a tenant in the building and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. Violations were issued. However, HPD also identified potential lead-based paint conditions and will attempt to contact you to schedule a follow-up inspection to test the paint for lead. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Inspected; violations issued&#34;,
+            &#34;More than one complaint was received for this building-wide condition.This complaint status is for the initial complaint. The following complaint conditions are still open. HPD may attempt to contact you to verify the correction of the condition or may conduct an inspection.&#34;: &#34;Complaint remains open&#34;,
+            &#34;The Department of Housing Preservation and Development was unable to access the rooms where the following  conditions were reported. No violations were issued. The complaint has been closed.&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. A Section 8 Failure was issued. Both the tenant and the property owner will receive a notice in the mail regarding the details of the Failure and the resulting action by the Agency.&#34;: &#34;Inspected; violations issued&#34;,
+            &#34;UNKNOWN STATUS&#34; : &#34;UNKNOWN STATUS&#34;
+        }
+
+        self.data[&#34;statusdescriptionshort&#34;] = self.data[&#34;statusdescription&#34;].map(descriptions)
+
+    def __load_pluto(self) -&gt; None:
+        &#34;&#34;&#34;
+        Fetches and merges the PLUTO dataset to the Brownsville dataset. 
+        &#34;&#34;&#34;
+        with Client(*self.config[&#34;sodapy&#34;].values(), data_path=self.path) as c:
+            df_pluto = c.load_pluto(
+                fetch_all=True,
+                verbose=self.fetch_remote,
+                select=&#34;bbl, bldgclass, bldgarea, numbldgs, numfloors, unitsres, unitstotal,&#34;
+                + &#34;landuse, ownertype, ownername, yearbuilt, yearalter1, yearalter2&#34;,
+                where=&#34;cd=316&#34;
+            )
+
+            df_pluto[&#34;bbl&#34;] = df_pluto[&#34;bbl&#34;].astype(&#34;Int64&#34;)
+            self.data = pd.merge(
+                self.data,
+                df_pluto,
+                on=&#34;bbl&#34;,
+                how=&#34;left&#34;
+            )
+
+            owner_types = {
+                &#34;C&#34;: &#34;CITY OWNERSHIP&#34;,
+                &#34;M&#34;: &#34;MIXED CITY &amp; PRIVATE OWNERSHIP&#34;,
+                &#34;O&#34;: &#34;OTHER (PUBLIC AUTHORITY OR THE STATE/FEDERAL GOVERNMENT)&#34;,
+                &#34;P&#34;: &#34;PRIVATE OWNERSHIP&#34;,
+                &#34;X&#34;: &#34;FULLY TAX-EXEMPT PROPERTY (MAYBE OWNED BY THE CITY)&#34;
+            }
+
+            self.data[&#34;ownertypelong&#34;] = self.data[&#34;ownertype&#34;].map(
+                owner_types)
+
+    def __fill_na(self) -&gt; None:
+        &#34;&#34;&#34;
+        &#34;&#34;&#34;
+        values = {
+            &#34;numbldgs&#34;: 0,
+            &#34;numfloors&#34;: 0,
+            &#34;unitsres&#34;: 0,
+            &#34;unitstotal&#34;: 0,
+            &#34;landuse&#34;: 0,
+            &#34;yearbuilt&#34;: 0,
+            &#34;yearalter1&#34;: 0,
+            &#34;yearalter2&#34;: 0,
+            &#34;ownertypelong&#34;: &#34;UNKNOWN (USUALLY PRIVATE OWNERSHIP)&#34;,
+            &#34;statusdescription&#34;: &#34;UNKNOWN STATUS&#34;
+        }
+        self.data.fillna(value=values, inplace=True)
+
+    def __get_BBL(self) -&gt; None:
+        &#34;&#34;&#34;
+        &#34;&#34;&#34;
+        self.data[&#34;bbl&#34;] = self.data[&#34;boroughid&#34;].astype(str)                \
+            + self.data[&#34;block&#34;].astype(str).apply(str.zfill, args=(5,))     \
+            + self.data[&#34;lot&#34;].astype(str).apply(str.zfill, args=(4,))
+
+        self.data[&#34;bbl&#34;] = self.data[&#34;bbl&#34;].astype(&#39;int64&#39;)
+
     def __load_config(self) -&gt; None:
         &#34;&#34;&#34;
         Load the configuration file necessary for the API&#39;s
@@ -634,12 +973,6 @@ class Brownsville:
             # Load the configuration files with all the credentials for the Socrata API
             with open(&#34;./config.yaml&#34;, &#34;r&#34;) as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
-                # app_token, username, password = config[&#34;sodapy&#34;].values()
-
-                # if &#34;sodapy&#34; in config:
-                #     app_token, username, password = config[&#34;sodapy&#34;].values()
-                #     return app_token, username, password
-
                 return config
         except FileNotFoundError:
             print(
@@ -659,7 +992,7 @@ class Brownsville:
 <dl>
 <dt id="Brownsville.BrownsvilleAPI.Brownsville"><code class="flex name class">
 <span>class <span class="ident">Brownsville</span></span>
-<span>(</span><span>path: str = './data/brownsville/', force_load: bool = False)</span>
+<span>(</span><span>path: str = './data/brownsville/', force_load: bool = False, update_map: bool = True, verbose=True)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -669,34 +1002,54 @@ class Brownsville:
 </summary>
 <pre><code class="python">class Brownsville:
     def __init__(
-        self, path: str = &#34;./data/brownsville/&#34;, force_load: bool = False
+        self, path: str = &#34;./data/brownsville/&#34;, force_load: bool = False,
+        update_map: bool = True, verbose=True,
     ) -&gt; None:
         self.path = path
+        self.verbose = verbose
 
         # Create the directory where the dataset will be stored
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
         self.config = self.__load_config()
-        self.geocode_client = GeocodeClient(self.config[&#34;geocode&#34;][&#34;app_token&#34;])
+        self.geocode_client = GeocodeClient(
+            self.config[&#34;geocode&#34;][&#34;app_token&#34;])
 
         self.__load_dataset(force_load)
-        self.__translate_ids()
-        self.__parse_datatypes()
         self.__set_addresses()
-
+        self.__fill_zip_codes()
         self.__get_spatial_information()
+        self.__get_BBL()
 
-        # self.__filter_no_complaints()
+        self.__load_pluto()
 
-        self._map = self.__update_map()
+        self.__parse_datatypes()
+        self.__fill_na()
+        self.__translate_ids()
+        self.__filter_no_complaints()
+
+        self.__filter_descriptions()
+
+        self._map = None
+        if update_map:
+            self._map = self.__update_map()
+
+        self.save(overwrite_file=True)
 
     @property
     def buildings(self) -&gt; np.ndarray:
         &#34;&#34;&#34;
-        Returns an NumPy ndarray with the set of unique buildings in the dataset by building id.
+        Returns an NumPy ndarray with the set of unique buildings in the dataset.
         &#34;&#34;&#34;
         return self.data[&#34;buildingid&#34;].unique()
+
+    @property
+    def addresses(self) -&gt; np.ndarray:
+        &#34;&#34;&#34;
+        Returns an NumPy ndarray with the set of unique addresses in the dataset.
+        &#34;&#34;&#34;
+        return self.data[&#34;address&#34;].unique()
 
     @property
     def complaints(self) -&gt; pd.Series:
@@ -705,15 +1058,70 @@ class Brownsville:
         number of complaints reported.
         &#34;&#34;&#34;
 
-        # complaints = np.zeros(len(self.buildings))
-        # for i, building_id in enumerate(self.buildings):
-        #     num_of_complaints = self.complaint_number(building_id)
-        #     complaints[i] = num_of_complaints
-
-        # df = pd.DataFrame({&#34;buildingid&#34;: self.buildings, &#34;complaints&#34;: complaints})
-
-        # return df
         return self.data[&#34;buildingid&#34;].value_counts()
+
+    def get_record_by_building_id(self, building_id: int) -&gt; pd.DataFrame:
+        &#34;&#34;&#34;
+        Get the building information corresponding to the first occurence of the passed building id.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            ID used as key to search the dataframe. 
+        &#34;&#34;&#34;
+        if not building_id:
+            raise IndexError(&#34;A building id  must be passed.&#34;) 
+
+        index = self.data[&#34;buildingid&#34;].values.searchsorted(building_id)
+        return self.data.iloc[index]
+
+    def get_records_by_address(self, address:str, copy:bool=False) -&gt; pd.Series:
+        &#34;&#34;&#34;
+        Get the building information corresponding to the first occurence of the passed address.
+
+        Parameters:
+        -----------
+        address: `str`
+            Address used as key to search the dataframe. 
+        &#34;&#34;&#34;
+        records = self.data[self.data[&#34;address&#34;] == address]
+        if copy:
+            return records.copy()
+
+        return records
+
+    def complaint_to_residential_unit_ratio(self, building_id: int) -&gt; float:
+        &#34;&#34;&#34;
+        Returns a number representing the ratio between the compaints reported from a building
+        to the number residential units in said building.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            Building ID to calculate the complaints to residential units ratio.
+        &#34;&#34;&#34;
+
+        num_of_complaints = self.complaint_number(building_id)
+        residential_units = self.get_residential_units(building_id)
+
+        if residential_units == 0:
+            return -1
+
+        return round(num_of_complaints / residential_units, 3)
+
+    def get_residential_units(self, building_id: int) -&gt; int:
+        &#34;&#34;&#34;
+        Returns an integer representing the number of residential units by building id or address.
+
+        Parameters:
+        -----------
+        building_id: `int`
+            ID used as key to search the dataframe.
+        &#34;&#34;&#34;
+
+        row = self.get_record_by_building_id(building_id)
+
+        return row[&#34;unitsres&#34;]
 
     def get_date_range(self, by: str = &#34;status&#34;) -&gt; Tuple[pd.Timestamp, pd.Timestamp]:
         &#34;&#34;&#34;
@@ -732,92 +1140,16 @@ class Brownsville:
 
         return self.data[by].min(), self.data[by].max()
 
-    def records_by_season(self) -&gt; Tuple[List, List]:
+    def get_building_age(self, building_id:int) -&gt; int:
         &#34;&#34;&#34;
-        Return the number of complaints reported by season.
-        &#34;&#34;&#34;
-        date_counts = self.records_by_date(period=&#34;month&#34;)
-
-        seasons = [&#34;Winter&#34;, &#34;Spring&#34;, &#34;Summer&#34;, &#34;Autumn&#34;]
-        values = [
-            date_counts.loc[[&#34;Jan&#34;, &#34;Feb&#34;, &#34;Mar&#34;]].sum(),
-            date_counts.loc[[&#34;Apr&#34;, &#34;May&#34;, &#34;Jun&#34;]].sum(),
-            date_counts.loc[[&#34;Jul&#34;, &#34;Aug&#34;, &#34;Sep&#34;]].sum(),
-            date_counts.loc[[&#34;Oct&#34;, &#34;Nov&#34;, &#34;Dec&#34;]].sum(),
-        ]
-        print(f&#34;{seasons[0]}: {values[0]}&#34;)
-        print(f&#34;{seasons[1]}: {values[1]}&#34;)
-        print(f&#34;{seasons[2]}: {values[2]}&#34;)
-        print(f&#34;{seasons[3]}: {values[3]}&#34;)
-
-        return seasons, values
-
-    def records_by_date(
-        self, period: str = &#34;month&#34;, step: int = 1, num_years: int = 0
-    ) -&gt; set:
-        &#34;&#34;&#34;
-        Return the number of complaints reported on a monthly or yearly basis.
+        Returns an integer representing the age of the building, provided its building id. 
 
         Parameters:
         -----------
-        period: `str`
-            Type of time period to return the number of complaint reported.
-        step: `int`
-            Number of year intervals to separate the data. *Only works if period is `year`*
-        num_years `int`
-            Number of past years to query the data. *Only works if period is `year`*
-
-        TODO: FIX TIME PERIODS
+        building_id: `int`
+            ID used as key to search the dataframe.
         &#34;&#34;&#34;
-        if period == &#34;month&#34;:
-            dates = self.data[&#34;statusdate&#34;].dt.month.astype(&#34;Int64&#34;)
-            date_counts = dates.value_counts()
-            date_counts = date_counts.sort_index()
-
-            date_counts.index = pd.Index(
-                [
-                    &#34;Jan&#34;,
-                    &#34;Feb&#34;,
-                    &#34;Mar&#34;,
-                    &#34;Apr&#34;,
-                    &#34;May&#34;,
-                    &#34;Jun&#34;,
-                    &#34;Jul&#34;,
-                    &#34;Aug&#34;,
-                    &#34;Sep&#34;,
-                    &#34;Oct&#34;,
-                    &#34;Nov&#34;,
-                    &#34;Dec&#34;,
-                ]
-            )
-
-        if period == &#34;year&#34;:
-            dates = self.data[&#34;statusdate&#34;].dt.year.astype(&#34;Int64&#34;)
-
-            date_counts = dates.value_counts()
-            date_counts = date_counts.sort_index()
-
-            if num_years &gt; len(date_counts):
-                raise &#34;The number of years must be less than the number of available years in the dataset&#34;
-
-            if num_years &gt; step &gt;= 0:
-                date_counts = date_counts.sort_index(ascending=False)
-
-                years = []
-
-                for i in range(0, num_years, step):
-                    start = i
-                    end = start + step
-
-                    if len(date_counts) &gt; end:
-                        end = len(date_counts) - 1
-
-                    year_range = date_counts.iloc[i : i + step].sort_index()
-                    years.append(year_range)
-
-                return list(reversed(years))
-
-        return date_counts
+        return date.today().year - self.get_record_by_building_id(building_id)[&#34;yearbuilt&#34;]
 
     def get_feature_occurrences_by_building(
         self,
@@ -940,6 +1272,93 @@ class Brownsville:
 
             common_categories = common_categories[:n]
         return common_categories
+                
+
+    def records_by_season(self) -&gt; Tuple[List, List]:
+        &#34;&#34;&#34;
+        Return the number of complaints reported by season.
+        &#34;&#34;&#34;
+        date_counts = self.records_by_date(period=&#34;month&#34;)
+
+        seasons = [&#34;Winter&#34;, &#34;Spring&#34;, &#34;Summer&#34;, &#34;Autumn&#34;]
+        values = [
+            date_counts.loc[[&#34;Jan&#34;, &#34;Feb&#34;, &#34;Mar&#34;]].sum(),
+            date_counts.loc[[&#34;Apr&#34;, &#34;May&#34;, &#34;Jun&#34;]].sum(),
+            date_counts.loc[[&#34;Jul&#34;, &#34;Aug&#34;, &#34;Sep&#34;]].sum(),
+            date_counts.loc[[&#34;Oct&#34;, &#34;Nov&#34;, &#34;Dec&#34;]].sum(),
+        ]
+
+        if self.verbose:
+            for i in range(len(seasons)):
+                print(f&#34;{seasons[i]}: {values[i]}&#34;)
+
+        return seasons, values
+
+    def records_by_date(
+        self, period: str = &#34;month&#34;, step: int = 1, num_years: int = 0
+    ) -&gt; set:
+        &#34;&#34;&#34;
+        Return the number of complaints reported on a monthly or yearly basis.
+
+        Parameters:
+        -----------
+        period: `str`
+            Type of time period to return the number of complaint reported.
+        step: `int`
+            Number of year intervals to separate the data. *Only works if period is `year`*
+        num_years `int`
+            Number of past years to query the data. *Only works if period is `year`*
+
+        &#34;&#34;&#34;
+        if period == &#34;month&#34;:
+            dates = self.data[&#34;statusdate&#34;].dt.month.astype(&#34;Int64&#34;)
+            date_counts = dates.value_counts()
+            date_counts = date_counts.sort_index()
+
+            date_counts.index = pd.Index(
+                [
+                    &#34;Jan&#34;,
+                    &#34;Feb&#34;,
+                    &#34;Mar&#34;,
+                    &#34;Apr&#34;,
+                    &#34;May&#34;,
+                    &#34;Jun&#34;,
+                    &#34;Jul&#34;,
+                    &#34;Aug&#34;,
+                    &#34;Sep&#34;,
+                    &#34;Oct&#34;,
+                    &#34;Nov&#34;,
+                    &#34;Dec&#34;,
+                ]
+            )
+
+        if period == &#34;year&#34;:
+            dates = self.data[&#34;statusdate&#34;].dt.year.astype(&#34;Int64&#34;)
+
+            date_counts = dates.value_counts()
+            date_counts = date_counts.sort_index()
+
+            if num_years &gt; len(date_counts):
+                raise &#34;The number of years must be less than the number of available years in the dataset&#34;
+
+            if num_years &gt; step &gt;= 0:
+                date_counts = date_counts.sort_index(ascending=False)
+
+                years = []
+
+                for i in range(0, num_years, step):
+                    start = i
+                    end = start + step
+
+                    if len(date_counts) &gt; end:
+                        end = len(date_counts) - 1
+
+                    year_range = date_counts.iloc[i: i + step].sort_index()
+                    years.append(year_range)
+
+                    return list(reversed(years))
+
+        return date_counts
 
     def complaint_number(self, building_id: int) -&gt; int:
         &#34;&#34;&#34;
@@ -950,11 +1369,7 @@ class Brownsville:
         building_id: `int`
             ID of the building in the dataset.
         &#34;&#34;&#34;
-        # common_complaints = self.get_feature_occurrences_by_building(
-        #     building_id, by=[&#34;majorcategory&#34;, &#34;minorcategory&#34;], find_all=True
-        # )
 
-        # return int(common_complaints.values.sum())
         return (self.data[&#34;buildingid&#34;] == building_id).sum()
 
     def get_common_complaint_categories(self, building_id: int) -&gt; int:
@@ -987,7 +1402,7 @@ class Brownsville:
             Flag indicating whether the file should be overwritten or not.
         &#34;&#34;&#34;
         if not filename:
-            filename = self.path + &#34;brownsville.csv&#34;
+            filename = os.path.join(self.path, &#34;brownsville.csv&#34;)
 
         if os.path.exists(filename):
             if not overwrite_file:
@@ -1006,6 +1421,8 @@ class Brownsville:
         save_map: `bool`
             Save the map to an `.html` file.
         &#34;&#34;&#34;
+        if self._map:
+            return self._map
 
         nyc_longitude, nyc_latitude = 40.68424658435642, -73.91630313916588
 
@@ -1019,65 +1436,151 @@ class Brownsville:
         columns = [&#34;buildingid&#34;, &#34;address&#34;, &#34;latitude&#34;, &#34;longitude&#34;]
         unique_addresses = self.data[columns].groupby(columns).size()
 
-        two_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(self.data[&#34;statusdate&#34;].dt.year) - 2)
+        two_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(
+            self.data[&#34;statusdate&#34;].dt.year) - 2)
         data_two_years = self.data[two_year_filter][columns]
         unique_addresses_two_years = data_two_years.groupby(columns).size()
 
-        five_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(self.data[&#34;statusdate&#34;].dt.year) - 5)
+        five_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(
+            self.data[&#34;statusdate&#34;].dt.year) - 5)
         data_five_years = self.data[five_year_filter][columns]
         unique_addresses_five_years = data_five_years.groupby(columns).size()
 
         # Import the map marker style
-        nyc_map.get_root().header.add_child(CssLink(&#34;./assets/css/foliumStyle.css&#34;))
+        nyc_map.get_root().header.add_child(CssLink(&#34;./static/style/foliumStyle.css&#34;))
+        nyc_map.get_root().header.add_child(JavascriptLink(
+            &#34;./static/js/leaflet.groupedlayercontrol.min.js&#34;))
 
-        self.__create_marker_cluster(
-            unique_addresses,
-            name=&#34;Address locations&#34;
+        feature_group_1 = self.__create_marker_feature_group(
+            name=&#34;Address Locations&#34;,
+            data=unique_addresses,
+            folium_map=nyc_map
+        )
+        feature_group_2 = self.__create_marker_feature_group(
+            name=&#34;Address locations (two years)&#34;,
+            data=unique_addresses_two_years,
+            folium_map=nyc_map
+        )
+        feature_group_3 = self.__create_marker_feature_group(
+            name=&#34;Address locations (five years)&#34;,
+            data=unique_addresses_five_years,
+            folium_map=nyc_map
+        )
+
+        feature_group_4 = self.__create_heatmap_feature_group(
+            name=&#34;Brownsville heatmap&#34;,
+            folium_map=nyc_map
+        )
+        feature_group_5 = self.__create_heatmap_feature_group(
+            name=&#34;Brownsville heatmap (two years)&#34;,
+            folium_map=nyc_map,
+            n=2
+        )
+        feature_group_6 = self.__create_heatmap_feature_group(
+            name=&#34;Brownsville heatmap (five years)&#34;,
+            folium_map=nyc_map,
+            n=5
+        )
+
+        glc.GroupedLayerControl({}, {
+            &#34;Address locations&#34;: {
+                &#34;All years&#34;:  feature_group_1,
+                &#34;Two years&#34;:  feature_group_2,
+                &#34;Five years&#34;: feature_group_3},
+            &#34;Heatmap&#34;: {
+                &#34;All years&#34;: feature_group_4,
+                &#34;Two years&#34;: feature_group_5,
+                &#34;Five years&#34;: feature_group_6
+            }},
+            [&#34;Address locations&#34;, &#34;Heatmap&#34;]
         ).add_to(nyc_map)
-        self.__create_marker_cluster(
-            unique_addresses_two_years,
-            name=&#34;Address locations (two years)&#34;
-        ).add_to(nyc_map)
-        self.__create_marker_cluster(
-            unique_addresses_five_years,
-            name=&#34;Address locations (five years)&#34;
-        ).add_to(nyc_map)
-
-        # Get the coordinates for each building
-        lats = self.data[&#34;latitude&#34;].values
-        lons = self.data[&#34;longitude&#34;].values
-
-        # Calculate and 0-1 normalize heatmap weights
-        complaints_per_building = self.complaints
-        weight_f = lambda b_id: complaints_per_building[b_id]
-        weights = self.data[&#34;buildingid&#34;].apply(weight_f).values
-        weights = (weights - min(weights)) / (max(weights) - min(weights))
-
-        folium.plugins.HeatMap(
-            data=list(zip(lats, lons, weights)),
-            name=&#34;Brownsville heat map&#34;,
-            min_opacity=0.3,
-            max_opacity=0.7,
-        ).add_to(nyc_map)
-
-        folium.LayerControl().add_to(nyc_map)
 
         # Save the map to an HTML file
         if save_map:
-            filename = os.path.join(self.path, &#34;brownsville.html&#34;)
+            filename = os.path.join(os.getcwd(), &#34;brownsville.html&#34;)
+
+            # filename = os.path.join(path)
             nyc_map.save(outfile=filename)
 
         return nyc_map
 
+    def __create_heatmap_feature_group(
+        self, name: str, folium_map: folium.Map, n: int = None
+    ) -&gt; folium.FeatureGroup:
+        &#34;&#34;&#34;
+        Returns a feature group with a heat map of the locations in the provided pandas DataFrame.
+
+        Parameters:
+        -----------
+        name: `str`
+            Name of the of feature group.
+        folium_map: `folium.Map`
+            Folium map where the heatmap feature group will be added.
+        n: `int`
+            Number of years to look extract from the provided dataframe.
+        &#34;&#34;&#34;
+
+        data = self.data
+        if n:
+            n_year_filter = (data[&#34;statusdate&#34;].dt.year ==
+                             max(data[&#34;statusdate&#34;].dt.year) - n)
+            data = data[n_year_filter]
+
+        # Get the coordinates for each building
+        lats = data[&#34;latitude&#34;].values
+        lons = data[&#34;longitude&#34;].values
+
+        # Calculate and 0-1 normalize heatmap weights
+        complaints_per_building = data[&#34;buildingid&#34;].value_counts()
+        def weight_f(b_id): return complaints_per_building[b_id]
+        weights = data[&#34;buildingid&#34;].apply(weight_f).values
+        weights = (weights - min(weights)) / (max(weights) - min(weights))
+
+        feature_group = folium.FeatureGroup(name=name, show=True)
+        folium.plugins.HeatMap(
+            data=list(zip(lats, lons, weights)),
+            name=name,
+            min_opacity=0.3,
+            max_opacity=0.7,
+        ).add_to(feature_group)
+        feature_group.add_to(folium_map)
+
+        return feature_group
+
+    def __create_marker_feature_group(
+        self, name: str, data: pd.DataFrame, folium_map: folium.Map
+    ) -&gt; folium.FeatureGroup:
+        &#34;&#34;&#34;
+        Returns a feature group with a marker cluster of the locations in the provided pandas DataFrame.
+
+        Parameters:
+        -----------
+        name: `str`
+            Name of the of feature group.
+        data: `folium.Map`
+            Folium map where the heatmap feature group will be added.
+        n: `int`
+            Number of years to look extract from the provided dataframe.
+        &#34;&#34;&#34;
+
+        feature_group = folium.FeatureGroup(name=name, show=True)
+        self.__create_marker_cluster(
+            data,
+            name=name
+        ).add_to(feature_group)
+        feature_group.add_to(folium_map)
+
+        return feature_group
+
     def __create_marker_cluster(
-        self, df: pd.DataFrame, name: str = &#34;name not specified&#34;
+        self, data: pd.DataFrame, name: str = &#34;name not specified&#34;
     ) -&gt; folium.plugins.MarkerCluster:
         &#34;&#34;&#34;
         Accepts a Folium map in which custom leaflet marker cluster are added.
 
         Parameters:
         -----------
-        df: `pd.DataFrame`
+        data: `pd.DataFrame`
             Pandas DataFrame used as reference for the marker clusters.
         name: `str`
             Name of the marker cluster
@@ -1093,27 +1596,54 @@ class Brownsville:
             name=name, icon_create_function=icon_create_function
         )
 
-        for building_id, address, latitude, longitude in df.index:
+        for building_id, address, latitude, longitude in data.index:
+
+            building_info = self.get_record_by_building_id(building_id)
 
             number_of_reports = self.complaint_number(building_id)
             major_category, minor_category = self.get_common_complaint_categories(
                 building_id
             )
             complaint = f&#34;{major_category.title()} - {minor_category.title()}&#34;
+            complaint_to_runits = self.complaint_to_residential_unit_ratio(building_id)
+            if complaint_to_runits == -1:
+                complaint_to_runits = 0
+
+            owner = building_info[&#39;ownername&#39;]
+            if pd.isna(building_info[&#39;ownername&#39;]):
+                owner = &#34;UNKNOWN&#34;
+            
+            age_info = f&#34;{building_info[&#39;yearbuilt&#39;]} ({self.get_building_age(building_id)} years old)&#34;
+            if building_info[&#34;yearbuilt&#34;] == 0:
+                age_info = &#34;UNKNOWN&#34;
+
+            alterations = building_info[&#34;yearalter1&#34;]
             iframe = folium.IFrame(
                 html=f&#34;&#34;&#34;
-                    &lt;b&gt;{address}&lt;/b&gt;
-                    &lt;br&gt;
-                    &lt;br&gt;
-                    &lt;b&gt;Number of reports:&lt;/b&gt; {number_of_reports}
-                    &lt;br&gt;
-                    &lt;b&gt;Building ID:&lt;/b&gt; {building_id}
-                    &lt;br&gt;
-                    &lt;b&gt;Latitude:&lt;/b&gt; {latitude}
-                    &lt;br&gt;
-                    &lt;b&gt;Longitude:&lt;/b&gt; {longitude}
-                    &lt;br&gt;
-                    &lt;b&gt;Most frequent complaint:&lt;/b&gt; {complaint}
+                    &lt;div id=&#39;custom-popup&#39;&gt;
+                        &lt;b&gt;{address}&lt;/b&gt;
+                        &lt;br&gt;
+                        &lt;br&gt;
+                        &lt;b&gt;Building ID:&lt;/b&gt; {building_id}
+                        &lt;br&gt;
+                        &lt;b&gt;Owner:&lt;/b&gt; {owner}
+                        &lt;br&gt;
+                        &lt;b&gt;Owner type:&lt;/b&gt; {building_info[&#39;ownertypelong&#39;]}
+                        &lt;br&gt;
+                        &lt;b&gt;Yeart built:&lt;/b&gt; {age_info}
+                        &lt;br&gt;
+                        &lt;b&gt;Latitude:&lt;/b&gt; {latitude}
+                        &lt;br&gt;
+                        &lt;b&gt;Longitude:&lt;/b&gt; {longitude}
+                        &lt;br&gt;
+                        &lt;b&gt;Number of residential units:&lt;/b&gt; {building_info[&#39;unitsres&#39;]}
+                        &lt;br&gt;
+                        &lt;b&gt;Number of complaints:&lt;/b&gt; {number_of_reports}
+                        &lt;br&gt;
+                        &lt;b&gt;Complaint to residential units ratio:&lt;/b&gt; {complaint_to_runits}
+                        &lt;br&gt;
+                        &lt;b&gt;Most frequent complaint:&lt;/b&gt; {complaint}
+                    &lt;/div&gt;
 
                     &lt;style&gt;
                         html * {{
@@ -1121,12 +1651,18 @@ class Brownsville:
                             color: #000 !important;
                             font-family: Arial !important;
                         }}
+
+                        #custom-popup {{
+                            min-width: 450px;
+                            min-height: 450px;
+                        }}
                     &lt;/style&gt;
                 &#34;&#34;&#34;
             )
 
-            popup = folium.Popup(iframe, min_width=350, max_width=350, parse_html=True)
-
+            popup = folium.Popup(iframe, min_width=500,
+                                 max_width=500, parse_html=True)
+            
             marker = folium.Marker(
                 location=[latitude, longitude],
                 popup=address,
@@ -1140,11 +1676,11 @@ class Brownsville:
 
         return marker_cluster
 
-    def __update_map(self):
+    def __update_map(self) -&gt; folium.Map:
         &#34;&#34;&#34;
         Helper function to update map when instantiating the class.
         &#34;&#34;&#34;
-        self.display_map(save_map=True)
+        return self.display_map(save_map=True)
 
     def __filter_no_complaints(self) -&gt; None:
         &#34;&#34;&#34;
@@ -1165,16 +1701,22 @@ class Brownsville:
         columns = [&#34;address&#34;, &#34;borough&#34;, &#34;zip&#34;]
 
         # Read the translation table from local storage if exists
-        filename = self.path + &#34;address_table.json&#34;
+        filename = os.path.join(self.path, &#34;address_table.json&#34;)
         if os.path.exists(filename):
             with open(filename, &#34;r&#34;) as f:
                 address_to_coord = json.load(f)
         else:
+
             unique_addresses = self.data[columns].groupby(columns).size()
             address_to_coord = {}
             for street, city, zip_code in unique_addresses.index:
+                if pd.isnull(zip_code):
+                    zip_code == self.geocode_client.get_zip(
+                        street, city, state)
                 address = &#34; &#34;.join((street, city, str(zip_code)))
-                coord = self.geocode_client.get_lat_lng(street, city, state, zip_code)
+
+                coord = self.geocode_client.get_lat_lng(
+                    street, city, state, zip_code)
                 address_to_coord[address] = coord
 
             with open(filename, &#34;w&#34;) as f:
@@ -1196,31 +1738,62 @@ class Brownsville:
         self.data[&#34;latitude&#34;] = latitudes
         self.data[&#34;longitude&#34;] = longitudes
 
+    def __fill_zip_codes(self) -&gt; None:
+
+        columns = [&#34;address&#34;, &#34;borough&#34;, &#34;zip&#34;]
+
+        def get_zip(address): return self.geocode_client.get_zip(
+            address[0], address[1], &#34;NY&#34;)
+
+        self.data[&#34;zip&#34;] = self.data[&#34;zip&#34;].astype(&#34;Int64&#34;)
+        zip_filter = self.data[&#34;zip&#34;].isna()
+        missing_zip = self.data[columns][zip_filter].copy()
+        zip_codes = missing_zip.apply(get_zip, axis=1).values
+
+        for index, zip_code in zip(self.data[&#34;zip&#34;][zip_filter].index, zip_codes):
+            self.data[&#34;zip&#34;].iloc[index] = zip_code
+
     def __set_addresses(self) -&gt; None:
         &#34;&#34;&#34;
         Concatenates the house number and street name into a single columns.
         &#34;&#34;&#34;
-        self.data[&#34;address&#34;] = self.data[&#34;housenumber&#34;] + &#34; &#34; + self.data[&#34;streetname&#34;]
+        self.data[&#34;address&#34;] = self.data[&#34;housenumber&#34;] + \
+            &#34; &#34; + self.data[&#34;streetname&#34;]
 
     def __parse_datatypes(self) -&gt; None:
         &#34;&#34;&#34;
         Parses the dataset features to their appropiate datatypes.
         &#34;&#34;&#34;
-        self.data[&#34;unittypeid&#34;] = self.data[&#34;unittypeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;spacetypeid&#34;] = self.data[&#34;spacetypeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;typeid&#34;] = self.data[&#34;typeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;majorcategoryid&#34;] = self.data[&#34;majorcategoryid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;minorcategoryid&#34;] = self.data[&#34;minorcategoryid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;codeid&#34;] = self.data[&#34;codeid&#34;].astype(&#34;Int64&#34;)
-        self.data[&#34;receiveddate&#34;] = self.data[&#34;receiveddate&#34;].astype(&#34;datetime64&#34;)
-        self.data[&#34;statusdate&#34;] = self.data[&#34;statusdate&#34;].astype(&#34;datetime64&#34;)
+        convert_dict = {
+            &#34;unittypeid&#34;: &#34;Int64&#34;,
+            &#34;spacetypeid&#34;: &#34;Int64&#34;,
+            &#34;typeid&#34;: &#34;Int64&#34;,
+            &#34;majorcategoryid&#34;: &#34;Int64&#34;,
+            &#34;minorcategoryid&#34;: &#34;Int64&#34;,
+            &#34;codeid&#34;: &#34;Int64&#34;,
+            &#34;unitsres&#34;: &#34;Int64&#34;,
+            &#34;unitstotal&#34;: &#34;Int64&#34;,
+            &#34;numbldgs&#34;: &#34;Int64&#34;,
+            &#34;yearbuilt&#34;: &#34;Int64&#34;,
+            &#34;yearalter1&#34;: &#34;Int64&#34;,
+            &#34;yearalter2&#34;: &#34;Int64&#34;,
+            &#34;receiveddate&#34;: &#34;datetime64&#34;,
+            &#34;statusdate&#34;: &#34;datetime64&#34;
+        }
 
-    def __load_dataset(self, force_load: bool = False) -&gt; None:
+        try:
+            self.data = self.data.astype(convert_dict)
+        except:
+            print(&#34;Conversion error&#34;)
+
+    def __load_dataset(
+        self, force_load: bool = False
+    ) -&gt; bool:
         &#34;&#34;&#34;
         Uses the Scoracte API custom client to create the Bronwsville dataset.
         &#34;&#34;&#34;
 
-        with Client(*self.config[&#34;sodapy&#34;].values(), data_path=self.path) as c:
+        with Client(*self.config[&#34;sodapy&#34;].values(), data_path=self.path, timeout=40) as c:
 
             update_due = (
                 c.metadata_complaint_problems.cache_date
@@ -1232,10 +1805,18 @@ class Brownsville:
 
             filepath = os.path.join(self.path, c.metadata_brownsville.filename)
             if not force_load and not update_due and os.path.exists(filepath):
-                print(&#34;Loading cached dataset...&#34;)
+                if self.verbose:
+                    print(&#34;Loading cached dataset...&#34;)
                 self.data = pd.read_csv(filepath, index_col=0)
+
+                self.fetch_remote = False
             else:
-                self.data = c.load_brownsville(fetch_all=True)
+                self.data = c.load_brownsville(
+                    fetch_all=True, verbose=self.verbose)
+                self.fetch_remote = True
+
+            self.data.sort_values(by=&#39;buildingid&#39;, inplace=True)
+            self.data.reset_index()
 
     def __translate_ids(self) -&gt; None:
         &#34;&#34;&#34;
@@ -1247,6 +1828,95 @@ class Brownsville:
                 value = translations[key]
                 self.data[key] = self.data[key + &#34;id&#34;].map(value)
 
+    def __filter_descriptions(self) -&gt; None:
+        &#34;&#34;&#34;
+        Parses the dataset&#39;s status description to a shorter version. 
+        &#34;&#34;&#34;
+        descriptions = {
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. No violations were issued. The complaint has been closed.&#34;: &#34;Inspected; no violations issued&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. Violations were issued. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Inspected; violations issued&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to inspect the following conditions. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Unable to gain access&#34;,
+            &#34;More than one complaint was received for this building-wide condition.This complaint status is for the initial complaint. The Department of Housing Preservation and Development contacted an occupant of the apartment and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;More than one complaint was received for this building-wide condition.This complaint status is for the initial complaint. The Department of Housing Preservation and Development contacted a tenant in the building and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development responded to a complaint of no heat or hot water and was advised by a tenant in the building that heat and hot water had been restored. If the condition still exists, please file a new complaint.&#34;: &#34;Single complaint; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to your apartment or others in the building to inspect for a lack of heat or hot water. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development contacted an occupant of the apartment and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Inspected; no violations issued&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. Violations were previously issued for these conditions. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Inspected; violations previously issued&#34;,
+            &#34;The Department of Housing Preservation and Development was unable to access the rooms where the following conditions were reported. No violations were issued. The complaint has been closed.&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development contacted a tenant in the building and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Single complaint; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to your apartment to inspect for a lack of heat or hot water. However, HPD was able to verify that heat or hot water was inadequate by inspecting another apartment and a violation was issued. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Unable to gain access; violation issued&#34;,
+            &#34;The following complaint conditions are still open. HPD may attempt to contact you to verify the correction of the condition or may conduct an inspection.&#34;: &#34;Complaint remains open&#34;,
+            &#34;The Department of Housing Preservation and Development was not able to gain access to inspect the conditions. If the conditions still exist and an inspection is required, please contact the borough office with your complaint number at&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development responded to a complaint of no heat or hot water. Heat was not required at the time of the inspection. No violations were issued. If the condition still exists, please file a new complaint.&#34;: &#34;Inspected; no violations issued&#34;,
+            &#34;More than one complaint was received for this building-wide condition. This complaint status is for the initial complaint.The Department of Housing Preservation and Development contacted an occupant of the apartment and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;More than one complaint was received for this building-wide condition. This complaint status is for the initial complaint.The Department of Housing Preservation and Development contacted a tenant in the building and verified that the following conditions were corrected. The complaint has been closed. If the condition still exists, please file a new complaint.&#34;: &#34;Multiple complaints; tenant confirmed resolved&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. Violations were issued. However, HPD also identified potential lead-based paint conditions and will attempt to contact you to schedule a follow-up inspection to test the paint for lead. Information about specific violations is available at www.nyc.gov/hpd.&#34;: &#34;Inspected; violations issued&#34;,
+            &#34;More than one complaint was received for this building-wide condition.This complaint status is for the initial complaint. The following complaint conditions are still open. HPD may attempt to contact you to verify the correction of the condition or may conduct an inspection.&#34;: &#34;Complaint remains open&#34;,
+            &#34;The Department of Housing Preservation and Development was unable to access the rooms where the following  conditions were reported. No violations were issued. The complaint has been closed.&#34;: &#34;Unable to gain access&#34;,
+            &#34;The Department of Housing Preservation and Development inspected the following conditions. A Section 8 Failure was issued. Both the tenant and the property owner will receive a notice in the mail regarding the details of the Failure and the resulting action by the Agency.&#34;: &#34;Inspected; violations issued&#34;,
+            &#34;UNKNOWN STATUS&#34; : &#34;UNKNOWN STATUS&#34;
+        }
+
+        self.data[&#34;statusdescriptionshort&#34;] = self.data[&#34;statusdescription&#34;].map(descriptions)
+
+    def __load_pluto(self) -&gt; None:
+        &#34;&#34;&#34;
+        Fetches and merges the PLUTO dataset to the Brownsville dataset. 
+        &#34;&#34;&#34;
+        with Client(*self.config[&#34;sodapy&#34;].values(), data_path=self.path) as c:
+            df_pluto = c.load_pluto(
+                fetch_all=True,
+                verbose=self.fetch_remote,
+                select=&#34;bbl, bldgclass, bldgarea, numbldgs, numfloors, unitsres, unitstotal,&#34;
+                + &#34;landuse, ownertype, ownername, yearbuilt, yearalter1, yearalter2&#34;,
+                where=&#34;cd=316&#34;
+            )
+
+            df_pluto[&#34;bbl&#34;] = df_pluto[&#34;bbl&#34;].astype(&#34;Int64&#34;)
+            self.data = pd.merge(
+                self.data,
+                df_pluto,
+                on=&#34;bbl&#34;,
+                how=&#34;left&#34;
+            )
+
+            owner_types = {
+                &#34;C&#34;: &#34;CITY OWNERSHIP&#34;,
+                &#34;M&#34;: &#34;MIXED CITY &amp; PRIVATE OWNERSHIP&#34;,
+                &#34;O&#34;: &#34;OTHER (PUBLIC AUTHORITY OR THE STATE/FEDERAL GOVERNMENT)&#34;,
+                &#34;P&#34;: &#34;PRIVATE OWNERSHIP&#34;,
+                &#34;X&#34;: &#34;FULLY TAX-EXEMPT PROPERTY (MAYBE OWNED BY THE CITY)&#34;
+            }
+
+            self.data[&#34;ownertypelong&#34;] = self.data[&#34;ownertype&#34;].map(
+                owner_types)
+
+    def __fill_na(self) -&gt; None:
+        &#34;&#34;&#34;
+        &#34;&#34;&#34;
+        values = {
+            &#34;numbldgs&#34;: 0,
+            &#34;numfloors&#34;: 0,
+            &#34;unitsres&#34;: 0,
+            &#34;unitstotal&#34;: 0,
+            &#34;landuse&#34;: 0,
+            &#34;yearbuilt&#34;: 0,
+            &#34;yearalter1&#34;: 0,
+            &#34;yearalter2&#34;: 0,
+            &#34;ownertypelong&#34;: &#34;UNKNOWN (USUALLY PRIVATE OWNERSHIP)&#34;,
+            &#34;statusdescription&#34;: &#34;UNKNOWN STATUS&#34;
+        }
+        self.data.fillna(value=values, inplace=True)
+
+    def __get_BBL(self) -&gt; None:
+        &#34;&#34;&#34;
+        &#34;&#34;&#34;
+        self.data[&#34;bbl&#34;] = self.data[&#34;boroughid&#34;].astype(str)                \
+            + self.data[&#34;block&#34;].astype(str).apply(str.zfill, args=(5,))     \
+            + self.data[&#34;lot&#34;].astype(str).apply(str.zfill, args=(4,))
+
+        self.data[&#34;bbl&#34;] = self.data[&#34;bbl&#34;].astype(&#39;int64&#39;)
+
     def __load_config(self) -&gt; None:
         &#34;&#34;&#34;
         Load the configuration file necessary for the API&#39;s
@@ -1255,12 +1925,6 @@ class Brownsville:
             # Load the configuration files with all the credentials for the Socrata API
             with open(&#34;./config.yaml&#34;, &#34;r&#34;) as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
-                # app_token, username, password = config[&#34;sodapy&#34;].values()
-
-                # if &#34;sodapy&#34; in config:
-                #     app_token, username, password = config[&#34;sodapy&#34;].values()
-                #     return app_token, username, password
-
                 return config
         except FileNotFoundError:
             print(
@@ -1270,9 +1934,24 @@ class Brownsville:
 </details>
 <h3>Instance variables</h3>
 <dl>
+<dt id="Brownsville.BrownsvilleAPI.Brownsville.addresses"><code class="name">var <span class="ident">addresses</span> : numpy.ndarray</code></dt>
+<dd>
+<div class="desc"><p>Returns an NumPy ndarray with the set of unique addresses in the dataset.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def addresses(self) -&gt; np.ndarray:
+    &#34;&#34;&#34;
+    Returns an NumPy ndarray with the set of unique addresses in the dataset.
+    &#34;&#34;&#34;
+    return self.data[&#34;address&#34;].unique()</code></pre>
+</details>
+</dd>
 <dt id="Brownsville.BrownsvilleAPI.Brownsville.buildings"><code class="name">var <span class="ident">buildings</span> : numpy.ndarray</code></dt>
 <dd>
-<div class="desc"><p>Returns an NumPy ndarray with the set of unique buildings in the dataset by building id.</p></div>
+<div class="desc"><p>Returns an NumPy ndarray with the set of unique buildings in the dataset.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -1280,7 +1959,7 @@ class Brownsville:
 <pre><code class="python">@property
 def buildings(self) -&gt; np.ndarray:
     &#34;&#34;&#34;
-    Returns an NumPy ndarray with the set of unique buildings in the dataset by building id.
+    Returns an NumPy ndarray with the set of unique buildings in the dataset.
     &#34;&#34;&#34;
     return self.data[&#34;buildingid&#34;].unique()</code></pre>
 </details>
@@ -1300,14 +1979,6 @@ def complaints(self) -&gt; pd.Series:
     number of complaints reported.
     &#34;&#34;&#34;
 
-    # complaints = np.zeros(len(self.buildings))
-    # for i, building_id in enumerate(self.buildings):
-    #     num_of_complaints = self.complaint_number(building_id)
-    #     complaints[i] = num_of_complaints
-
-    # df = pd.DataFrame({&#34;buildingid&#34;: self.buildings, &#34;complaints&#34;: complaints})
-
-    # return df
     return self.data[&#34;buildingid&#34;].value_counts()</code></pre>
 </details>
 </dd>
@@ -1335,12 +2006,41 @@ ID of the building in the dataset.</p></div>
     building_id: `int`
         ID of the building in the dataset.
     &#34;&#34;&#34;
-    # common_complaints = self.get_feature_occurrences_by_building(
-    #     building_id, by=[&#34;majorcategory&#34;, &#34;minorcategory&#34;], find_all=True
-    # )
 
-    # return int(common_complaints.values.sum())
     return (self.data[&#34;buildingid&#34;] == building_id).sum()</code></pre>
+</details>
+</dd>
+<dt id="Brownsville.BrownsvilleAPI.Brownsville.complaint_to_residential_unit_ratio"><code class="name flex">
+<span>def <span class="ident">complaint_to_residential_unit_ratio</span></span>(<span>self, building_id: int) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns a number representing the ratio between the compaints reported from a building
+to the number residential units in said building.</p>
+<h2 id="parameters">Parameters:</h2>
+<p>building_id: <code>int</code>
+Building ID to calculate the complaints to residential units ratio.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def complaint_to_residential_unit_ratio(self, building_id: int) -&gt; float:
+    &#34;&#34;&#34;
+    Returns a number representing the ratio between the compaints reported from a building
+    to the number residential units in said building.
+
+    Parameters:
+    -----------
+    building_id: `int`
+        Building ID to calculate the complaints to residential units ratio.
+    &#34;&#34;&#34;
+
+    num_of_complaints = self.complaint_number(building_id)
+    residential_units = self.get_residential_units(building_id)
+
+    if residential_units == 0:
+        return -1
+
+    return round(num_of_complaints / residential_units, 3)</code></pre>
 </details>
 </dd>
 <dt id="Brownsville.BrownsvilleAPI.Brownsville.display_map"><code class="name flex">
@@ -1364,6 +2064,8 @@ Save the map to an <code>.html</code> file.</p></div>
     save_map: `bool`
         Save the map to an `.html` file.
     &#34;&#34;&#34;
+    if self._map:
+        return self._map
 
     nyc_longitude, nyc_latitude = 40.68424658435642, -73.91630313916588
 
@@ -1377,55 +2079,97 @@ Save the map to an <code>.html</code> file.</p></div>
     columns = [&#34;buildingid&#34;, &#34;address&#34;, &#34;latitude&#34;, &#34;longitude&#34;]
     unique_addresses = self.data[columns].groupby(columns).size()
 
-    two_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(self.data[&#34;statusdate&#34;].dt.year) - 2)
+    two_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(
+        self.data[&#34;statusdate&#34;].dt.year) - 2)
     data_two_years = self.data[two_year_filter][columns]
     unique_addresses_two_years = data_two_years.groupby(columns).size()
 
-    five_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(self.data[&#34;statusdate&#34;].dt.year) - 5)
+    five_year_filter = (self.data[&#34;statusdate&#34;].dt.year == max(
+        self.data[&#34;statusdate&#34;].dt.year) - 5)
     data_five_years = self.data[five_year_filter][columns]
     unique_addresses_five_years = data_five_years.groupby(columns).size()
 
     # Import the map marker style
-    nyc_map.get_root().header.add_child(CssLink(&#34;./assets/css/foliumStyle.css&#34;))
+    nyc_map.get_root().header.add_child(CssLink(&#34;./static/style/foliumStyle.css&#34;))
+    nyc_map.get_root().header.add_child(JavascriptLink(
+        &#34;./static/js/leaflet.groupedlayercontrol.min.js&#34;))
 
-    self.__create_marker_cluster(
-        unique_addresses,
-        name=&#34;Address locations&#34;
+    feature_group_1 = self.__create_marker_feature_group(
+        name=&#34;Address Locations&#34;,
+        data=unique_addresses,
+        folium_map=nyc_map
+    )
+    feature_group_2 = self.__create_marker_feature_group(
+        name=&#34;Address locations (two years)&#34;,
+        data=unique_addresses_two_years,
+        folium_map=nyc_map
+    )
+    feature_group_3 = self.__create_marker_feature_group(
+        name=&#34;Address locations (five years)&#34;,
+        data=unique_addresses_five_years,
+        folium_map=nyc_map
+    )
+
+    feature_group_4 = self.__create_heatmap_feature_group(
+        name=&#34;Brownsville heatmap&#34;,
+        folium_map=nyc_map
+    )
+    feature_group_5 = self.__create_heatmap_feature_group(
+        name=&#34;Brownsville heatmap (two years)&#34;,
+        folium_map=nyc_map,
+        n=2
+    )
+    feature_group_6 = self.__create_heatmap_feature_group(
+        name=&#34;Brownsville heatmap (five years)&#34;,
+        folium_map=nyc_map,
+        n=5
+    )
+
+    glc.GroupedLayerControl({}, {
+        &#34;Address locations&#34;: {
+            &#34;All years&#34;:  feature_group_1,
+            &#34;Two years&#34;:  feature_group_2,
+            &#34;Five years&#34;: feature_group_3},
+        &#34;Heatmap&#34;: {
+            &#34;All years&#34;: feature_group_4,
+            &#34;Two years&#34;: feature_group_5,
+            &#34;Five years&#34;: feature_group_6
+        }},
+        [&#34;Address locations&#34;, &#34;Heatmap&#34;]
     ).add_to(nyc_map)
-    self.__create_marker_cluster(
-        unique_addresses_two_years,
-        name=&#34;Address locations (two years)&#34;
-    ).add_to(nyc_map)
-    self.__create_marker_cluster(
-        unique_addresses_five_years,
-        name=&#34;Address locations (five years)&#34;
-    ).add_to(nyc_map)
-
-    # Get the coordinates for each building
-    lats = self.data[&#34;latitude&#34;].values
-    lons = self.data[&#34;longitude&#34;].values
-
-    # Calculate and 0-1 normalize heatmap weights
-    complaints_per_building = self.complaints
-    weight_f = lambda b_id: complaints_per_building[b_id]
-    weights = self.data[&#34;buildingid&#34;].apply(weight_f).values
-    weights = (weights - min(weights)) / (max(weights) - min(weights))
-
-    folium.plugins.HeatMap(
-        data=list(zip(lats, lons, weights)),
-        name=&#34;Brownsville heat map&#34;,
-        min_opacity=0.3,
-        max_opacity=0.7,
-    ).add_to(nyc_map)
-
-    folium.LayerControl().add_to(nyc_map)
 
     # Save the map to an HTML file
     if save_map:
-        filename = os.path.join(self.path, &#34;brownsville.html&#34;)
+        filename = os.path.join(os.getcwd(), &#34;brownsville.html&#34;)
+
+        # filename = os.path.join(path)
         nyc_map.save(outfile=filename)
 
     return nyc_map</code></pre>
+</details>
+</dd>
+<dt id="Brownsville.BrownsvilleAPI.Brownsville.get_building_age"><code class="name flex">
+<span>def <span class="ident">get_building_age</span></span>(<span>self, building_id: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns an integer representing the age of the building, provided its building id. </p>
+<h2 id="parameters">Parameters:</h2>
+<p>building_id: <code>int</code>
+ID used as key to search the dataframe.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_building_age(self, building_id:int) -&gt; int:
+    &#34;&#34;&#34;
+    Returns an integer representing the age of the building, provided its building id. 
+
+    Parameters:
+    -----------
+    building_id: `int`
+        ID used as key to search the dataframe.
+    &#34;&#34;&#34;
+    return date.today().year - self.get_record_by_building_id(building_id)[&#34;yearbuilt&#34;]</code></pre>
 </details>
 </dd>
 <dt id="Brownsville.BrownsvilleAPI.Brownsville.get_common_complaint_categories"><code class="name flex">
@@ -1655,6 +2399,89 @@ Set to <code>True</code> to display warning messages. Default False.</p></div>
     return common_categories</code></pre>
 </details>
 </dd>
+<dt id="Brownsville.BrownsvilleAPI.Brownsville.get_record_by_building_id"><code class="name flex">
+<span>def <span class="ident">get_record_by_building_id</span></span>(<span>self, building_id: int) ‑> pandas.core.frame.DataFrame</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the building information corresponding to the first occurence of the passed building id.</p>
+<h2 id="parameters">Parameters:</h2>
+<p>building_id: <code>int</code>
+ID used as key to search the dataframe.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_record_by_building_id(self, building_id: int) -&gt; pd.DataFrame:
+    &#34;&#34;&#34;
+    Get the building information corresponding to the first occurence of the passed building id.
+
+    Parameters:
+    -----------
+    building_id: `int`
+        ID used as key to search the dataframe. 
+    &#34;&#34;&#34;
+    if not building_id:
+        raise IndexError(&#34;A building id  must be passed.&#34;) 
+
+    index = self.data[&#34;buildingid&#34;].values.searchsorted(building_id)
+    return self.data.iloc[index]</code></pre>
+</details>
+</dd>
+<dt id="Brownsville.BrownsvilleAPI.Brownsville.get_records_by_address"><code class="name flex">
+<span>def <span class="ident">get_records_by_address</span></span>(<span>self, address: str, copy: bool = False) ‑> pandas.core.series.Series</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the building information corresponding to the first occurence of the passed address.</p>
+<h2 id="parameters">Parameters:</h2>
+<p>address: <code>str</code>
+Address used as key to search the dataframe.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_records_by_address(self, address:str, copy:bool=False) -&gt; pd.Series:
+    &#34;&#34;&#34;
+    Get the building information corresponding to the first occurence of the passed address.
+
+    Parameters:
+    -----------
+    address: `str`
+        Address used as key to search the dataframe. 
+    &#34;&#34;&#34;
+    records = self.data[self.data[&#34;address&#34;] == address]
+    if copy:
+        return records.copy()
+
+    return records</code></pre>
+</details>
+</dd>
+<dt id="Brownsville.BrownsvilleAPI.Brownsville.get_residential_units"><code class="name flex">
+<span>def <span class="ident">get_residential_units</span></span>(<span>self, building_id: int) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns an integer representing the number of residential units by building id or address.</p>
+<h2 id="parameters">Parameters:</h2>
+<p>building_id: <code>int</code>
+ID used as key to search the dataframe.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_residential_units(self, building_id: int) -&gt; int:
+    &#34;&#34;&#34;
+    Returns an integer representing the number of residential units by building id or address.
+
+    Parameters:
+    -----------
+    building_id: `int`
+        ID used as key to search the dataframe.
+    &#34;&#34;&#34;
+
+    row = self.get_record_by_building_id(building_id)
+
+    return row[&#34;unitsres&#34;]</code></pre>
+</details>
+</dd>
 <dt id="Brownsville.BrownsvilleAPI.Brownsville.records_by_date"><code class="name flex">
 <span>def <span class="ident">records_by_date</span></span>(<span>self, period: str = 'month', step: int = 1, num_years: int = 0) ‑> set</span>
 </code></dt>
@@ -1666,8 +2493,7 @@ Type of time period to return the number of complaint reported.
 step: <code>int</code>
 Number of year intervals to separate the data. <em>Only works if period is <code>year</code></em>
 num_years <code>int</code>
-Number of past years to query the data. <em>Only works if period is <code>year</code></em></p>
-<p>TODO: FIX TIME PERIODS</p></div>
+Number of past years to query the data. <em>Only works if period is <code>year</code></em></p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -1687,7 +2513,6 @@ Number of past years to query the data. <em>Only works if period is <code>year</
     num_years `int`
         Number of past years to query the data. *Only works if period is `year`*
 
-    TODO: FIX TIME PERIODS
     &#34;&#34;&#34;
     if period == &#34;month&#34;:
         dates = self.data[&#34;statusdate&#34;].dt.month.astype(&#34;Int64&#34;)
@@ -1732,10 +2557,10 @@ Number of past years to query the data. <em>Only works if period is <code>year</
                 if len(date_counts) &gt; end:
                     end = len(date_counts) - 1
 
-                year_range = date_counts.iloc[i : i + step].sort_index()
+                year_range = date_counts.iloc[i: i + step].sort_index()
                 years.append(year_range)
 
-            return list(reversed(years))
+                return list(reversed(years))
 
     return date_counts</code></pre>
 </details>
@@ -1762,10 +2587,10 @@ Number of past years to query the data. <em>Only works if period is <code>year</
         date_counts.loc[[&#34;Jul&#34;, &#34;Aug&#34;, &#34;Sep&#34;]].sum(),
         date_counts.loc[[&#34;Oct&#34;, &#34;Nov&#34;, &#34;Dec&#34;]].sum(),
     ]
-    print(f&#34;{seasons[0]}: {values[0]}&#34;)
-    print(f&#34;{seasons[1]}: {values[1]}&#34;)
-    print(f&#34;{seasons[2]}: {values[2]}&#34;)
-    print(f&#34;{seasons[3]}: {values[3]}&#34;)
+
+    if self.verbose:
+        for i in range(len(seasons)):
+            print(f&#34;{seasons[i]}: {values[i]}&#34;)
 
     return seasons, values</code></pre>
 </details>
@@ -1798,7 +2623,7 @@ Flag indicating whether the file should be overwritten or not.</p></div>
         Flag indicating whether the file should be overwritten or not.
     &#34;&#34;&#34;
     if not filename:
-        filename = self.path + &#34;brownsville.csv&#34;
+        filename = os.path.join(self.path, &#34;brownsville.csv&#34;)
 
     if os.path.exists(filename):
         if not overwrite_file:
@@ -1850,14 +2675,20 @@ Flag indicating whether the file should be overwritten or not.</p></div>
 <li>
 <h4><code><a title="Brownsville.BrownsvilleAPI.Brownsville" href="#Brownsville.BrownsvilleAPI.Brownsville">Brownsville</a></code></h4>
 <ul class="">
+<li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.addresses" href="#Brownsville.BrownsvilleAPI.Brownsville.addresses">addresses</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.buildings" href="#Brownsville.BrownsvilleAPI.Brownsville.buildings">buildings</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.complaint_number" href="#Brownsville.BrownsvilleAPI.Brownsville.complaint_number">complaint_number</a></code></li>
+<li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.complaint_to_residential_unit_ratio" href="#Brownsville.BrownsvilleAPI.Brownsville.complaint_to_residential_unit_ratio">complaint_to_residential_unit_ratio</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.complaints" href="#Brownsville.BrownsvilleAPI.Brownsville.complaints">complaints</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.display_map" href="#Brownsville.BrownsvilleAPI.Brownsville.display_map">display_map</a></code></li>
+<li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_building_age" href="#Brownsville.BrownsvilleAPI.Brownsville.get_building_age">get_building_age</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_common_complaint_categories" href="#Brownsville.BrownsvilleAPI.Brownsville.get_common_complaint_categories">get_common_complaint_categories</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_date_range" href="#Brownsville.BrownsvilleAPI.Brownsville.get_date_range">get_date_range</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_feature_occurrences_by_building" href="#Brownsville.BrownsvilleAPI.Brownsville.get_feature_occurrences_by_building">get_feature_occurrences_by_building</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_feature_occurrences_by_key" href="#Brownsville.BrownsvilleAPI.Brownsville.get_feature_occurrences_by_key">get_feature_occurrences_by_key</a></code></li>
+<li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_record_by_building_id" href="#Brownsville.BrownsvilleAPI.Brownsville.get_record_by_building_id">get_record_by_building_id</a></code></li>
+<li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_records_by_address" href="#Brownsville.BrownsvilleAPI.Brownsville.get_records_by_address">get_records_by_address</a></code></li>
+<li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.get_residential_units" href="#Brownsville.BrownsvilleAPI.Brownsville.get_residential_units">get_residential_units</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.records_by_date" href="#Brownsville.BrownsvilleAPI.Brownsville.records_by_date">records_by_date</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.records_by_season" href="#Brownsville.BrownsvilleAPI.Brownsville.records_by_season">records_by_season</a></code></li>
 <li><code><a title="Brownsville.BrownsvilleAPI.Brownsville.save" href="#Brownsville.BrownsvilleAPI.Brownsville.save">save</a></code></li>

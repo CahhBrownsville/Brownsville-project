@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.9.2" />
 <title>Brownsville.data_api API documentation</title>
-<meta name="description" content="TODO:
-- Parse keyword arguments in the __get_results method" />
+<meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -23,33 +22,30 @@
 <h1 class="title">Module <code>Brownsville.data_api</code></h1>
 </header>
 <section id="section-intro">
-<p>TODO:
-- Parse keyword arguments in the __get_results method</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">&#34;&#34;&#34;
-TODO: 
-    - Parse keyword arguments in the __get_results method
-&#34;&#34;&#34;
-
-import os
+<pre><code class="python">import os
 import pickle
 import textwrap
 from dataclasses import dataclass
 from datetime import datetime
 
 import pandas as pd
+from pandasql import sqldf
 from sodapy import Socrata
 
 _DOMAIN = &#34;data.cityofnewyork.us&#34;
 
+
 class UnknownDatasetException(Exception):
-    def __init__(self, msg:str = &#34;Passed dataset not in list of valid dataset&#34;) -&gt; None:
+    def __init__(self, msg: str = &#34;Passed dataset not in list of valid dataset&#34;) -&gt; None:
         super().__init__(msg)
 
-@dataclass
+# @dataclass
+
+
 class DatasetMetaInformation:
 
     endpoint: str
@@ -140,7 +136,8 @@ class Client(object):
                 timeout=timeout,
             )
 
-        self._DATA_PATH = data_path
+        self.__verify_data_path(data_path)
+
         self.__load_metadata()
 
     @property
@@ -157,11 +154,14 @@ class Client(object):
                 self.metadata_housing_maintenance.information,
                 self.metadata_dob_complaints.information,
                 self.metadata_brownsville.information,
+                self.metadata_pluto.information,
             ]
         )
         return s
 
-    def load_311(self, fetch_all: bool = False, **kwargs) -&gt; pd.DataFrame:
+    def load_311(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the 311 Service Requests from 2010 to Present dataset.
 
@@ -169,14 +169,18 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
-        df = self.__get_results(self.metadata_311, fetch_all=fetch_all, **kwargs)
+        df = self.__get_results(
+            self.metadata_311, fetch_all=fetch_all, verbose=verbose, **kwargs
+        )
 
         return df
 
     def load_complaint_problems(
-        self, fetch_all: bool = False, **kwargs
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
     ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -185,16 +189,18 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
         df = self.__get_results(
-            self.metadata_complaint_problems, fetch_all=fetch_all, **kwargs
+            self.metadata_complaint_problems, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
 
         return df
 
     def load_housing_maintenance(
-        self, fetch_all: bool = False, **kwargs
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
     ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -203,15 +209,19 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
         df = self.__get_results(
-            self.metadata_housing_maintenance, fetch_all=fetch_all, **kwargs
+            self.metadata_housing_maintenance, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
 
         return df
 
-    def load_dob_complaints(self, fetch_all: bool = False, **kwargs) -&gt; pd.DataFrame:
+    def load_dob_complaints(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the DOB Complaint Received dataset.
 
@@ -219,83 +229,106 @@ class Client(object):
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
         df = self.__get_results(
-            self.metadata_dob_complaints, fetch_all=fetch_all, **kwargs
+            self.metadata_dob_complaints, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
         return df
 
-    def load_brownsville(self, fetch_all: bool = False) -&gt; pd.DataFrame:
+    def load_brownsville(
+        self, fetch_all: bool = False, verbose:bool=False
+    ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
-        TODO: merge the housing maintenance and the complaint problems datasets
-        &#34;&#34;&#34;
-        # if os.path.exists(self._DATA_PATH + self.metadata_brownsville.filename):
-        #     df = pd.read_csv(self.metadata_brownsville.filename)
-        #     return df
+        Return a DataFrame containing all the compiled records Complaint Problems dataset and the 
+        Housing Maintenance dataset as the Brownsville dataset.
+
+        Parameters
+        ----------
+        fetch_all: `bool`
+            Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
+        &#34;&#34;&#34; 
 
         convert_dict = {
-            &#34;complaintid&#34; : &#34;Int64&#34;,
-            &#34;statusid&#34; : &#34;Int64&#34;,
+            &#34;complaintid&#34;: &#34;Int64&#34;,
+            &#34;statusid&#34;: &#34;Int64&#34;,
             &#34;statusdate&#34;: &#34;datetime64&#34;
         }
 
         df_housing_maintenance = self.load_housing_maintenance(
             fetch_all=fetch_all,
-            where=&#34;zip=&#39;11212&#39; OR zip=&#39;11233&#39;&#34;
+            verbose=verbose,
+            where=&#34;communityboard=16&#34;
         )
 
         min_date = min(df_housing_maintenance[&#34;statusdate&#34;])
+        min_complaint_id = min(df_housing_maintenance[&#34;complaintid&#34;])
+        max_complaint_id = max(df_housing_maintenance[&#34;complaintid&#34;])
 
         df_complaint_problems = self.load_complaint_problems(
             fetch_all=fetch_all,
+            verbose=verbose,
             select=&#34;complaintid, unittypeid, spacetypeid, &#34;
-                  +&#34;typeid, majorcategoryid, minorcategoryid, codeid, &#34;
-                  +&#34;statusid, statusdate, statusdescription&#34;,
-            where=f&#34;statusdate&gt;=&#39;{min_date}&#39;&#34;
+            + &#34;typeid, majorcategoryid, minorcategoryid, codeid, &#34;
+            + &#34;statusid, statusdate, statusdescription&#34;
         )
 
-        # df_311 = self.load_311(
-        #     fetch_all=True, 
-        #     select=&#34;created_date, closed_date, complaint_type, descriptor, x_coordinate_state_plane,    \
-        #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude&#34;, 
-        #     where=
-        #         &#34;agency IN (&#39;DOB&#39;, &#39;HPD&#39;) AND incident_zip IN (&#39;11212&#39;, &#39;11233&#39;)&#34;
-        # )
+        try:
+            df_housing_maintenance = df_housing_maintenance.astype(
+                convert_dict)
+            df_complaint_problems = df_complaint_problems.astype(convert_dict)
+        except:
+            print(&#34;Conversion error&#34;)
 
-        df_housing_maintenance = df_housing_maintenance.astype(convert_dict)
-        df_complaint_problems = df_complaint_problems.astype(convert_dict)
-        merge_columns = [&#34;complaintid&#34;, &#34;statusdate&#34;]
-        # merge_columns = [&#34;complaintid&#34;]
-        
-        # df_brownsville = pd.join(
-        #     df_housing_maintenance,
-        #     df_complaint_problems,
-        #     on=merge_columns,
-        #     how=&#34;left&#34;
-        # )
+        merge_columns = [&#34;complaintid&#34;]
 
         df_brownsville = pd.merge(
             df_housing_maintenance,
             df_complaint_problems,
             on=merge_columns,
-            how=&#34;left&#34;
+            how=&#34;left&#34;,
+            suffixes=(&#34;&#34;, &#34;_y&#34;)
         )
-        
+
         df_brownsville = df_brownsville[
-            [&#39;complaintid&#39;, &#39;buildingid&#39;, &#39;boroughid&#39;, &#39;borough&#39;, &#39;housenumber&#39;,
-             &#39;streetname&#39;, &#39;zip&#39;, &#39;block&#39;, &#39;lot&#39;, &#39;apartment&#39;, &#39;communityboard&#39;,
-             &#39;receiveddate&#39;, &#39;status&#39;, &#39;unittypeid&#39;, &#39;spacetypeid&#39;,
-             &#39;typeid&#39;, &#39;majorcategoryid&#39;, &#39;minorcategoryid&#39;, &#39;codeid&#39;, &#34;statusdate&#34;,
-             &#39;statusdescription&#39;]
+            [&#34;complaintid&#34;, &#34;buildingid&#34;, &#34;boroughid&#34;, &#34;borough&#34;, &#34;housenumber&#34;,
+             &#34;streetname&#34;, &#34;zip&#34;, &#34;block&#34;, &#34;lot&#34;, &#34;apartment&#34;, #&#34;communityboard&#34;,
+             &#34;receiveddate&#34;, &#34;status&#34;, &#34;unittypeid&#34;, &#34;spacetypeid&#34;,
+             &#34;typeid&#34;, &#34;majorcategoryid&#34;, &#34;minorcategoryid&#34;, &#34;codeid&#34;, &#34;statusdate&#34;,
+             &#34;statusdescription&#34;]
         ]
 
-        df_brownsville.to_csv(self._DATA_PATH + self.metadata_brownsville.filename)
+        filename = os.path.join(self._DATA_PATH, self.metadata_brownsville.filename)
+        df_brownsville.to_csv(filename)
 
         return df_brownsville
 
+    def load_pluto(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Return a DataFrame containing all records from the Primary Land Use Tax Lot Output (PLUTO) dataset.
+
+        Parameters
+        ----------
+        fetch_all: `bool`
+            Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
+        &#34;&#34;&#34;
+        df = self.__get_results(
+            self.metadata_pluto, fetch_all=fetch_all, verbose=verbose, **kwargs
+        )
+        return df
+
     def __get_results(
-        self, metadata: DatasetMetaInformation, fetch_all: bool = False, load_local=True, **kwargs
+        self, metadata: DatasetMetaInformation,
+        fetch_all: bool = False, load_local=True,
+        verbose:bool=False, **kwargs
     ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a pandas dataframe containing all records from the specified endpoint. If a dataset is already
@@ -308,6 +341,8 @@ class Client(object):
             Object containing the metadata information for the desired dataset.
         fetch_all: `bool`
             Boolean flag indicating whether to return the whole dataset or just a subset.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
         # Set the metadata loaded flag
         if not metadata.loaded:
@@ -317,25 +352,30 @@ class Client(object):
         if fetch_all:
 
             fetch_remote = True
+
             # Verify that the queries for the current and previous requests are identical
             if metadata.last_query == kwargs:
 
-                # Check if the datset is cached and the load_local flag is true
+                # Check if the dataset is cached and the load_local flag is true
                 if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
-                    print(&#34;Loading cached dataset...&#34;)
+                    if verbose:
+                        print(&#34;Loading cached dataset...&#34;)
 
                     # Read the file stored in cache
-                    df = pd.read_csv(self._DATA_PATH + metadata.filename, index_col=0)
+                    df = pd.read_csv(self._DATA_PATH +
+                                     metadata.filename, index_col=0)
                     fetch_remote = False
 
                     # Check if more rows have been added to the dataset
                     if metadata.cache_date &lt; metadata.updated_on:
-                        print(&#34;Updating records...&#34;)
+                        if verbose:
+                            print(&#34;Updating records...&#34;)
 
                         kwargs[&#34;offset&#34;] = metadata.offset
 
                         # Fetch the remaining records from the website
-                        results = self._client.get_all(metadata.endpoint, **kwargs)
+                        results = self._client.get_all(
+                            metadata.endpoint, **kwargs)
                         remote_df = pd.DataFrame.from_records(results)
 
                         # Append the new rows to the old dataframe and update the metadata
@@ -343,7 +383,8 @@ class Client(object):
 
             # Fetch the whole dataset from the NYC OpenData servers
             if fetch_remote:
-                print(&#34;Downloading dataset...&#34;)
+                if verbose:
+                    print(f&#34;Downloading {metadata.name} dataset...&#34;)
                 results = self._client.get_all(metadata.endpoint, **kwargs)
                 df = pd.DataFrame.from_records(results)
                 metadata.last_query = kwargs
@@ -354,8 +395,18 @@ class Client(object):
             df.to_csv(self._DATA_PATH + metadata.filename)
 
         else:
-            results = self._client.get(metadata.endpoint, **kwargs)
-            df = pd.DataFrame.from_records(results)
+            # Check if the dataset is cached and the load_local flag is true
+            if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
+                print(&#34;Loading cached dataset...&#34;)
+
+                # Read the file stored in cache
+                limit = kwargs.get(&#34;limit&#34;, 1000)
+
+                df = pd.read_csv(self._DATA_PATH +
+                                 metadata.filename, index_col=0, nrows=limit)
+            else:
+                results = self._client.get(metadata.endpoint, **kwargs)
+                df = pd.DataFrame.from_records(results)
 
         return df
 
@@ -368,10 +419,11 @@ class Client(object):
             self.metadata_complaint_problems,
             self.metadata_housing_maintenance,
             self.metadata_dob_complaints,
-            self.metadata_brownsville
+            self.metadata_brownsville,
+            self.metadata_pluto
         )
 
-        with open(self._DATA_PATH + &#34;./metadata.pickle&#34;, &#34;wb&#34;) as f:
+        with open(self._DATA_PATH + &#34;metadata.pickle&#34;, &#34;wb&#34;) as f:
             pickle.dump(objs, f)
 
     def __load_metadata(self) -&gt; None:
@@ -380,7 +432,7 @@ class Client(object):
         state for each of the data sources, else it fetches the information from the NYC OpenData servers.
         &#34;&#34;&#34;
         # Fetch meta information from the proposed datasets if not already stored
-        if not os.path.exists(self._DATA_PATH + &#34;./metadata.pickle&#34;):
+        if not os.path.exists(self._DATA_PATH + &#34;metadata.pickle&#34;):
             self.metadata_311 = DatasetMetaInformation(
                 self._client, &#34;erm2-nwe9&#34;
             )
@@ -393,6 +445,9 @@ class Client(object):
             self.metadata_dob_complaints = DatasetMetaInformation(
                 self._client, &#34;eabe-havv&#34;
             )
+            self.metadata_pluto = DatasetMetaInformation(
+                self._client, &#34;64uk-42ks&#34;
+            )
 
             date_1 = self.metadata_housing_maintenance.updated_on.timestamp()
             date_2 = self.metadata_complaint_problems.updated_on.timestamp()
@@ -403,23 +458,39 @@ class Client(object):
                 attribution=&#34;Team Survey-Fix&#34;,
                 category=&#34;Housing complaints&#34;,
                 description=&#34;Complaint reports on the Brownsville area&#34;,
-                rowsUpdatedAt=min(date_1, date_2) 
+                rowsUpdatedAt=min(date_1, date_2)
             )
         else:
             # Load the metadata information from storage
-            with open(self._DATA_PATH + &#34;./metadata.pickle&#34;, &#34;rb&#34;) as f:
+            with open(self._DATA_PATH + &#34;metadata.pickle&#34;, &#34;rb&#34;) as f:
                 objs = pickle.load(f)
                 self.metadata_311 = objs[0]
                 self.metadata_complaint_problems = objs[1]
                 self.metadata_housing_maintenance = objs[2]
                 self.metadata_dob_complaints = objs[3]
                 self.metadata_brownsville = objs[4]
+                self.metadata_pluto = objs[5]
 
         self.metadata_311.loaded = False
         self.metadata_complaint_problems.loaded = False
         self.metadata_housing_maintenance.loaded = False
         self.metadata_dob_complaints.loaded = False
         self.metadata_brownsville.loaded = False
+        self.metadata_pluto.loaded = False
+
+    def __verify_data_path(self, data_path: str):
+        self._DATA_PATH = data_path
+
+        # Ensure the path ends with the correct path separation token
+        if not data_path[-1] in (&#34;\\&#34;, &#34;/&#34;):
+            if &#34;/&#34; in data_path:
+                self._DATA_PATH += &#34;/&#34;
+            else:
+                self._DATA_PATH += &#34;\\&#34;
+
+        # Create the data path if it does not exist
+        if not os.path.exists(data_path):
+            os.mkdir(data_path)
 
     def close(self):
         &#34;&#34;&#34;
@@ -493,7 +564,8 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
                 timeout=timeout,
             )
 
-        self._DATA_PATH = data_path
+        self.__verify_data_path(data_path)
+
         self.__load_metadata()
 
     @property
@@ -510,11 +582,14 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
                 self.metadata_housing_maintenance.information,
                 self.metadata_dob_complaints.information,
                 self.metadata_brownsville.information,
+                self.metadata_pluto.information,
             ]
         )
         return s
 
-    def load_311(self, fetch_all: bool = False, **kwargs) -&gt; pd.DataFrame:
+    def load_311(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the 311 Service Requests from 2010 to Present dataset.
 
@@ -522,14 +597,18 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
-        df = self.__get_results(self.metadata_311, fetch_all=fetch_all, **kwargs)
+        df = self.__get_results(
+            self.metadata_311, fetch_all=fetch_all, verbose=verbose, **kwargs
+        )
 
         return df
 
     def load_complaint_problems(
-        self, fetch_all: bool = False, **kwargs
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
     ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -538,16 +617,18 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
         df = self.__get_results(
-            self.metadata_complaint_problems, fetch_all=fetch_all, **kwargs
+            self.metadata_complaint_problems, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
 
         return df
 
     def load_housing_maintenance(
-        self, fetch_all: bool = False, **kwargs
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
     ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -556,15 +637,19 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
         df = self.__get_results(
-            self.metadata_housing_maintenance, fetch_all=fetch_all, **kwargs
+            self.metadata_housing_maintenance, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
 
         return df
 
-    def load_dob_complaints(self, fetch_all: bool = False, **kwargs) -&gt; pd.DataFrame:
+    def load_dob_complaints(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a DataFrame containing all records from the DOB Complaint Received dataset.
 
@@ -572,83 +657,106 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
         ----------
         fetch_all: `bool`
             Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
 
         df = self.__get_results(
-            self.metadata_dob_complaints, fetch_all=fetch_all, **kwargs
+            self.metadata_dob_complaints, fetch_all=fetch_all, verbose=verbose, **kwargs
         )
         return df
 
-    def load_brownsville(self, fetch_all: bool = False) -&gt; pd.DataFrame:
+    def load_brownsville(
+        self, fetch_all: bool = False, verbose:bool=False
+    ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
-        TODO: merge the housing maintenance and the complaint problems datasets
-        &#34;&#34;&#34;
-        # if os.path.exists(self._DATA_PATH + self.metadata_brownsville.filename):
-        #     df = pd.read_csv(self.metadata_brownsville.filename)
-        #     return df
+        Return a DataFrame containing all the compiled records Complaint Problems dataset and the 
+        Housing Maintenance dataset as the Brownsville dataset.
+
+        Parameters
+        ----------
+        fetch_all: `bool`
+            Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
+        &#34;&#34;&#34; 
 
         convert_dict = {
-            &#34;complaintid&#34; : &#34;Int64&#34;,
-            &#34;statusid&#34; : &#34;Int64&#34;,
+            &#34;complaintid&#34;: &#34;Int64&#34;,
+            &#34;statusid&#34;: &#34;Int64&#34;,
             &#34;statusdate&#34;: &#34;datetime64&#34;
         }
 
         df_housing_maintenance = self.load_housing_maintenance(
             fetch_all=fetch_all,
-            where=&#34;zip=&#39;11212&#39; OR zip=&#39;11233&#39;&#34;
+            verbose=verbose,
+            where=&#34;communityboard=16&#34;
         )
 
         min_date = min(df_housing_maintenance[&#34;statusdate&#34;])
+        min_complaint_id = min(df_housing_maintenance[&#34;complaintid&#34;])
+        max_complaint_id = max(df_housing_maintenance[&#34;complaintid&#34;])
 
         df_complaint_problems = self.load_complaint_problems(
             fetch_all=fetch_all,
+            verbose=verbose,
             select=&#34;complaintid, unittypeid, spacetypeid, &#34;
-                  +&#34;typeid, majorcategoryid, minorcategoryid, codeid, &#34;
-                  +&#34;statusid, statusdate, statusdescription&#34;,
-            where=f&#34;statusdate&gt;=&#39;{min_date}&#39;&#34;
+            + &#34;typeid, majorcategoryid, minorcategoryid, codeid, &#34;
+            + &#34;statusid, statusdate, statusdescription&#34;
         )
 
-        # df_311 = self.load_311(
-        #     fetch_all=True, 
-        #     select=&#34;created_date, closed_date, complaint_type, descriptor, x_coordinate_state_plane,    \
-        #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude&#34;, 
-        #     where=
-        #         &#34;agency IN (&#39;DOB&#39;, &#39;HPD&#39;) AND incident_zip IN (&#39;11212&#39;, &#39;11233&#39;)&#34;
-        # )
+        try:
+            df_housing_maintenance = df_housing_maintenance.astype(
+                convert_dict)
+            df_complaint_problems = df_complaint_problems.astype(convert_dict)
+        except:
+            print(&#34;Conversion error&#34;)
 
-        df_housing_maintenance = df_housing_maintenance.astype(convert_dict)
-        df_complaint_problems = df_complaint_problems.astype(convert_dict)
-        merge_columns = [&#34;complaintid&#34;, &#34;statusdate&#34;]
-        # merge_columns = [&#34;complaintid&#34;]
-        
-        # df_brownsville = pd.join(
-        #     df_housing_maintenance,
-        #     df_complaint_problems,
-        #     on=merge_columns,
-        #     how=&#34;left&#34;
-        # )
+        merge_columns = [&#34;complaintid&#34;]
 
         df_brownsville = pd.merge(
             df_housing_maintenance,
             df_complaint_problems,
             on=merge_columns,
-            how=&#34;left&#34;
+            how=&#34;left&#34;,
+            suffixes=(&#34;&#34;, &#34;_y&#34;)
         )
-        
+
         df_brownsville = df_brownsville[
-            [&#39;complaintid&#39;, &#39;buildingid&#39;, &#39;boroughid&#39;, &#39;borough&#39;, &#39;housenumber&#39;,
-             &#39;streetname&#39;, &#39;zip&#39;, &#39;block&#39;, &#39;lot&#39;, &#39;apartment&#39;, &#39;communityboard&#39;,
-             &#39;receiveddate&#39;, &#39;status&#39;, &#39;unittypeid&#39;, &#39;spacetypeid&#39;,
-             &#39;typeid&#39;, &#39;majorcategoryid&#39;, &#39;minorcategoryid&#39;, &#39;codeid&#39;, &#34;statusdate&#34;,
-             &#39;statusdescription&#39;]
+            [&#34;complaintid&#34;, &#34;buildingid&#34;, &#34;boroughid&#34;, &#34;borough&#34;, &#34;housenumber&#34;,
+             &#34;streetname&#34;, &#34;zip&#34;, &#34;block&#34;, &#34;lot&#34;, &#34;apartment&#34;, #&#34;communityboard&#34;,
+             &#34;receiveddate&#34;, &#34;status&#34;, &#34;unittypeid&#34;, &#34;spacetypeid&#34;,
+             &#34;typeid&#34;, &#34;majorcategoryid&#34;, &#34;minorcategoryid&#34;, &#34;codeid&#34;, &#34;statusdate&#34;,
+             &#34;statusdescription&#34;]
         ]
 
-        df_brownsville.to_csv(self._DATA_PATH + self.metadata_brownsville.filename)
+        filename = os.path.join(self._DATA_PATH, self.metadata_brownsville.filename)
+        df_brownsville.to_csv(filename)
 
         return df_brownsville
 
+    def load_pluto(
+        self, fetch_all: bool = False, verbose:bool=False, **kwargs
+    ) -&gt; None:
+        &#34;&#34;&#34;
+        Return a DataFrame containing all records from the Primary Land Use Tax Lot Output (PLUTO) dataset.
+
+        Parameters
+        ----------
+        fetch_all: `bool`
+            Flag indicating whether all records should be feteched.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
+        &#34;&#34;&#34;
+        df = self.__get_results(
+            self.metadata_pluto, fetch_all=fetch_all, verbose=verbose, **kwargs
+        )
+        return df
+
     def __get_results(
-        self, metadata: DatasetMetaInformation, fetch_all: bool = False, load_local=True, **kwargs
+        self, metadata: DatasetMetaInformation,
+        fetch_all: bool = False, load_local=True,
+        verbose:bool=False, **kwargs
     ) -&gt; pd.DataFrame:
         &#34;&#34;&#34;
         Return a pandas dataframe containing all records from the specified endpoint. If a dataset is already
@@ -661,6 +769,8 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
             Object containing the metadata information for the desired dataset.
         fetch_all: `bool`
             Boolean flag indicating whether to return the whole dataset or just a subset.
+        verbose: `bool`
+            Flag indicating whther a message should be printed to the console or not. 
         &#34;&#34;&#34;
         # Set the metadata loaded flag
         if not metadata.loaded:
@@ -670,25 +780,30 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
         if fetch_all:
 
             fetch_remote = True
+
             # Verify that the queries for the current and previous requests are identical
             if metadata.last_query == kwargs:
 
-                # Check if the datset is cached and the load_local flag is true
+                # Check if the dataset is cached and the load_local flag is true
                 if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
-                    print(&#34;Loading cached dataset...&#34;)
+                    if verbose:
+                        print(&#34;Loading cached dataset...&#34;)
 
                     # Read the file stored in cache
-                    df = pd.read_csv(self._DATA_PATH + metadata.filename, index_col=0)
+                    df = pd.read_csv(self._DATA_PATH +
+                                     metadata.filename, index_col=0)
                     fetch_remote = False
 
                     # Check if more rows have been added to the dataset
                     if metadata.cache_date &lt; metadata.updated_on:
-                        print(&#34;Updating records...&#34;)
+                        if verbose:
+                            print(&#34;Updating records...&#34;)
 
                         kwargs[&#34;offset&#34;] = metadata.offset
 
                         # Fetch the remaining records from the website
-                        results = self._client.get_all(metadata.endpoint, **kwargs)
+                        results = self._client.get_all(
+                            metadata.endpoint, **kwargs)
                         remote_df = pd.DataFrame.from_records(results)
 
                         # Append the new rows to the old dataframe and update the metadata
@@ -696,7 +811,8 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
 
             # Fetch the whole dataset from the NYC OpenData servers
             if fetch_remote:
-                print(&#34;Downloading dataset...&#34;)
+                if verbose:
+                    print(f&#34;Downloading {metadata.name} dataset...&#34;)
                 results = self._client.get_all(metadata.endpoint, **kwargs)
                 df = pd.DataFrame.from_records(results)
                 metadata.last_query = kwargs
@@ -707,8 +823,18 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
             df.to_csv(self._DATA_PATH + metadata.filename)
 
         else:
-            results = self._client.get(metadata.endpoint, **kwargs)
-            df = pd.DataFrame.from_records(results)
+            # Check if the dataset is cached and the load_local flag is true
+            if load_local and os.path.exists(self._DATA_PATH + metadata.filename):
+                print(&#34;Loading cached dataset...&#34;)
+
+                # Read the file stored in cache
+                limit = kwargs.get(&#34;limit&#34;, 1000)
+
+                df = pd.read_csv(self._DATA_PATH +
+                                 metadata.filename, index_col=0, nrows=limit)
+            else:
+                results = self._client.get(metadata.endpoint, **kwargs)
+                df = pd.DataFrame.from_records(results)
 
         return df
 
@@ -721,10 +847,11 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
             self.metadata_complaint_problems,
             self.metadata_housing_maintenance,
             self.metadata_dob_complaints,
-            self.metadata_brownsville
+            self.metadata_brownsville,
+            self.metadata_pluto
         )
 
-        with open(self._DATA_PATH + &#34;./metadata.pickle&#34;, &#34;wb&#34;) as f:
+        with open(self._DATA_PATH + &#34;metadata.pickle&#34;, &#34;wb&#34;) as f:
             pickle.dump(objs, f)
 
     def __load_metadata(self) -&gt; None:
@@ -733,7 +860,7 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
         state for each of the data sources, else it fetches the information from the NYC OpenData servers.
         &#34;&#34;&#34;
         # Fetch meta information from the proposed datasets if not already stored
-        if not os.path.exists(self._DATA_PATH + &#34;./metadata.pickle&#34;):
+        if not os.path.exists(self._DATA_PATH + &#34;metadata.pickle&#34;):
             self.metadata_311 = DatasetMetaInformation(
                 self._client, &#34;erm2-nwe9&#34;
             )
@@ -746,6 +873,9 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
             self.metadata_dob_complaints = DatasetMetaInformation(
                 self._client, &#34;eabe-havv&#34;
             )
+            self.metadata_pluto = DatasetMetaInformation(
+                self._client, &#34;64uk-42ks&#34;
+            )
 
             date_1 = self.metadata_housing_maintenance.updated_on.timestamp()
             date_2 = self.metadata_complaint_problems.updated_on.timestamp()
@@ -756,23 +886,39 @@ Code Complaints&lt;code&gt;, and &lt;/code&gt;DOB Complaints Received</code>.</p
                 attribution=&#34;Team Survey-Fix&#34;,
                 category=&#34;Housing complaints&#34;,
                 description=&#34;Complaint reports on the Brownsville area&#34;,
-                rowsUpdatedAt=min(date_1, date_2) 
+                rowsUpdatedAt=min(date_1, date_2)
             )
         else:
             # Load the metadata information from storage
-            with open(self._DATA_PATH + &#34;./metadata.pickle&#34;, &#34;rb&#34;) as f:
+            with open(self._DATA_PATH + &#34;metadata.pickle&#34;, &#34;rb&#34;) as f:
                 objs = pickle.load(f)
                 self.metadata_311 = objs[0]
                 self.metadata_complaint_problems = objs[1]
                 self.metadata_housing_maintenance = objs[2]
                 self.metadata_dob_complaints = objs[3]
                 self.metadata_brownsville = objs[4]
+                self.metadata_pluto = objs[5]
 
         self.metadata_311.loaded = False
         self.metadata_complaint_problems.loaded = False
         self.metadata_housing_maintenance.loaded = False
         self.metadata_dob_complaints.loaded = False
         self.metadata_brownsville.loaded = False
+        self.metadata_pluto.loaded = False
+
+    def __verify_data_path(self, data_path: str):
+        self._DATA_PATH = data_path
+
+        # Ensure the path ends with the correct path separation token
+        if not data_path[-1] in (&#34;\\&#34;, &#34;/&#34;):
+            if &#34;/&#34; in data_path:
+                self._DATA_PATH += &#34;/&#34;
+            else:
+                self._DATA_PATH += &#34;\\&#34;
+
+        # Create the data path if it does not exist
+        if not os.path.exists(data_path):
+            os.mkdir(data_path)
 
     def close(self):
         &#34;&#34;&#34;
@@ -816,6 +962,7 @@ def information(self) -&gt; str:
             self.metadata_housing_maintenance.information,
             self.metadata_dob_complaints.information,
             self.metadata_brownsville.information,
+            self.metadata_pluto.information,
         ]
     )
     return s</code></pre>
@@ -842,7 +989,7 @@ def information(self) -&gt; str:
 </details>
 </dd>
 <dt id="Brownsville.data_api.Client.load_311"><code class="name flex">
-<span>def <span class="ident">load_311</span></span>(<span>self, fetch_all: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
+<span>def <span class="ident">load_311</span></span>(<span>self, fetch_all: bool = False, verbose: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return a DataFrame containing all records from the 311 Service Requests from 2010 to Present dataset.</p>
@@ -850,12 +997,16 @@ def information(self) -&gt; str:
 <dl>
 <dt><strong><code>fetch_all</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Flag indicating whether all records should be feteched.</dd>
+<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whther a message should be printed to the console or not.</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def load_311(self, fetch_all: bool = False, **kwargs) -&gt; pd.DataFrame:
+<pre><code class="python">def load_311(
+    self, fetch_all: bool = False, verbose:bool=False, **kwargs
+) -&gt; pd.DataFrame:
     &#34;&#34;&#34;
     Return a DataFrame containing all records from the 311 Service Requests from 2010 to Present dataset.
 
@@ -863,93 +1014,106 @@ def information(self) -&gt; str:
     ----------
     fetch_all: `bool`
         Flag indicating whether all records should be feteched.
+    verbose: `bool`
+        Flag indicating whther a message should be printed to the console or not. 
     &#34;&#34;&#34;
 
-    df = self.__get_results(self.metadata_311, fetch_all=fetch_all, **kwargs)
+    df = self.__get_results(
+        self.metadata_311, fetch_all=fetch_all, verbose=verbose, **kwargs
+    )
 
     return df</code></pre>
 </details>
 </dd>
 <dt id="Brownsville.data_api.Client.load_brownsville"><code class="name flex">
-<span>def <span class="ident">load_brownsville</span></span>(<span>self, fetch_all: bool = False) ‑> pandas.core.frame.DataFrame</span>
+<span>def <span class="ident">load_brownsville</span></span>(<span>self, fetch_all: bool = False, verbose: bool = False) ‑> pandas.core.frame.DataFrame</span>
 </code></dt>
 <dd>
-<div class="desc"><p>TODO: merge the housing maintenance and the complaint problems datasets</p></div>
+<div class="desc"><p>Return a DataFrame containing all the compiled records Complaint Problems dataset and the
+Housing Maintenance dataset as the Brownsville dataset.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>fetch_all</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whether all records should be feteched.</dd>
+<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whther a message should be printed to the console or not.</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def load_brownsville(self, fetch_all: bool = False) -&gt; pd.DataFrame:
+<pre><code class="python">def load_brownsville(
+    self, fetch_all: bool = False, verbose:bool=False
+) -&gt; pd.DataFrame:
     &#34;&#34;&#34;
-    TODO: merge the housing maintenance and the complaint problems datasets
-    &#34;&#34;&#34;
-    # if os.path.exists(self._DATA_PATH + self.metadata_brownsville.filename):
-    #     df = pd.read_csv(self.metadata_brownsville.filename)
-    #     return df
+    Return a DataFrame containing all the compiled records Complaint Problems dataset and the 
+    Housing Maintenance dataset as the Brownsville dataset.
+
+    Parameters
+    ----------
+    fetch_all: `bool`
+        Flag indicating whether all records should be feteched.
+    verbose: `bool`
+        Flag indicating whther a message should be printed to the console or not. 
+    &#34;&#34;&#34; 
 
     convert_dict = {
-        &#34;complaintid&#34; : &#34;Int64&#34;,
-        &#34;statusid&#34; : &#34;Int64&#34;,
+        &#34;complaintid&#34;: &#34;Int64&#34;,
+        &#34;statusid&#34;: &#34;Int64&#34;,
         &#34;statusdate&#34;: &#34;datetime64&#34;
     }
 
     df_housing_maintenance = self.load_housing_maintenance(
         fetch_all=fetch_all,
-        where=&#34;zip=&#39;11212&#39; OR zip=&#39;11233&#39;&#34;
+        verbose=verbose,
+        where=&#34;communityboard=16&#34;
     )
 
     min_date = min(df_housing_maintenance[&#34;statusdate&#34;])
+    min_complaint_id = min(df_housing_maintenance[&#34;complaintid&#34;])
+    max_complaint_id = max(df_housing_maintenance[&#34;complaintid&#34;])
 
     df_complaint_problems = self.load_complaint_problems(
         fetch_all=fetch_all,
+        verbose=verbose,
         select=&#34;complaintid, unittypeid, spacetypeid, &#34;
-              +&#34;typeid, majorcategoryid, minorcategoryid, codeid, &#34;
-              +&#34;statusid, statusdate, statusdescription&#34;,
-        where=f&#34;statusdate&gt;=&#39;{min_date}&#39;&#34;
+        + &#34;typeid, majorcategoryid, minorcategoryid, codeid, &#34;
+        + &#34;statusid, statusdate, statusdescription&#34;
     )
 
-    # df_311 = self.load_311(
-    #     fetch_all=True, 
-    #     select=&#34;created_date, closed_date, complaint_type, descriptor, x_coordinate_state_plane,    \
-    #                 status, due_date, bbl, y_coordinate_state_plane, latitude, longitude&#34;, 
-    #     where=
-    #         &#34;agency IN (&#39;DOB&#39;, &#39;HPD&#39;) AND incident_zip IN (&#39;11212&#39;, &#39;11233&#39;)&#34;
-    # )
+    try:
+        df_housing_maintenance = df_housing_maintenance.astype(
+            convert_dict)
+        df_complaint_problems = df_complaint_problems.astype(convert_dict)
+    except:
+        print(&#34;Conversion error&#34;)
 
-    df_housing_maintenance = df_housing_maintenance.astype(convert_dict)
-    df_complaint_problems = df_complaint_problems.astype(convert_dict)
-    merge_columns = [&#34;complaintid&#34;, &#34;statusdate&#34;]
-    # merge_columns = [&#34;complaintid&#34;]
-    
-    # df_brownsville = pd.join(
-    #     df_housing_maintenance,
-    #     df_complaint_problems,
-    #     on=merge_columns,
-    #     how=&#34;left&#34;
-    # )
+    merge_columns = [&#34;complaintid&#34;]
 
     df_brownsville = pd.merge(
         df_housing_maintenance,
         df_complaint_problems,
         on=merge_columns,
-        how=&#34;left&#34;
+        how=&#34;left&#34;,
+        suffixes=(&#34;&#34;, &#34;_y&#34;)
     )
-    
+
     df_brownsville = df_brownsville[
-        [&#39;complaintid&#39;, &#39;buildingid&#39;, &#39;boroughid&#39;, &#39;borough&#39;, &#39;housenumber&#39;,
-         &#39;streetname&#39;, &#39;zip&#39;, &#39;block&#39;, &#39;lot&#39;, &#39;apartment&#39;, &#39;communityboard&#39;,
-         &#39;receiveddate&#39;, &#39;status&#39;, &#39;unittypeid&#39;, &#39;spacetypeid&#39;,
-         &#39;typeid&#39;, &#39;majorcategoryid&#39;, &#39;minorcategoryid&#39;, &#39;codeid&#39;, &#34;statusdate&#34;,
-         &#39;statusdescription&#39;]
+        [&#34;complaintid&#34;, &#34;buildingid&#34;, &#34;boroughid&#34;, &#34;borough&#34;, &#34;housenumber&#34;,
+         &#34;streetname&#34;, &#34;zip&#34;, &#34;block&#34;, &#34;lot&#34;, &#34;apartment&#34;, #&#34;communityboard&#34;,
+         &#34;receiveddate&#34;, &#34;status&#34;, &#34;unittypeid&#34;, &#34;spacetypeid&#34;,
+         &#34;typeid&#34;, &#34;majorcategoryid&#34;, &#34;minorcategoryid&#34;, &#34;codeid&#34;, &#34;statusdate&#34;,
+         &#34;statusdescription&#34;]
     ]
 
-    df_brownsville.to_csv(self._DATA_PATH + self.metadata_brownsville.filename)
+    filename = os.path.join(self._DATA_PATH, self.metadata_brownsville.filename)
+    df_brownsville.to_csv(filename)
 
     return df_brownsville</code></pre>
 </details>
 </dd>
 <dt id="Brownsville.data_api.Client.load_complaint_problems"><code class="name flex">
-<span>def <span class="ident">load_complaint_problems</span></span>(<span>self, fetch_all: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
+<span>def <span class="ident">load_complaint_problems</span></span>(<span>self, fetch_all: bool = False, verbose: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return a DataFrame containing all records from the Complaint Problems dataset.</p>
@@ -957,13 +1121,15 @@ def information(self) -&gt; str:
 <dl>
 <dt><strong><code>fetch_all</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Flag indicating whether all records should be feteched.</dd>
+<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whther a message should be printed to the console or not.</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def load_complaint_problems(
-    self, fetch_all: bool = False, **kwargs
+    self, fetch_all: bool = False, verbose:bool=False, **kwargs
 ) -&gt; pd.DataFrame:
     &#34;&#34;&#34;
     Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -972,17 +1138,19 @@ def information(self) -&gt; str:
     ----------
     fetch_all: `bool`
         Flag indicating whether all records should be feteched.
+    verbose: `bool`
+        Flag indicating whther a message should be printed to the console or not. 
     &#34;&#34;&#34;
 
     df = self.__get_results(
-        self.metadata_complaint_problems, fetch_all=fetch_all, **kwargs
+        self.metadata_complaint_problems, fetch_all=fetch_all, verbose=verbose, **kwargs
     )
 
     return df</code></pre>
 </details>
 </dd>
 <dt id="Brownsville.data_api.Client.load_dob_complaints"><code class="name flex">
-<span>def <span class="ident">load_dob_complaints</span></span>(<span>self, fetch_all: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
+<span>def <span class="ident">load_dob_complaints</span></span>(<span>self, fetch_all: bool = False, verbose: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return a DataFrame containing all records from the DOB Complaint Received dataset.</p>
@@ -990,12 +1158,16 @@ def information(self) -&gt; str:
 <dl>
 <dt><strong><code>fetch_all</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Flag indicating whether all records should be feteched.</dd>
+<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whther a message should be printed to the console or not.</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def load_dob_complaints(self, fetch_all: bool = False, **kwargs) -&gt; pd.DataFrame:
+<pre><code class="python">def load_dob_complaints(
+    self, fetch_all: bool = False, verbose:bool=False, **kwargs
+) -&gt; pd.DataFrame:
     &#34;&#34;&#34;
     Return a DataFrame containing all records from the DOB Complaint Received dataset.
 
@@ -1003,16 +1175,18 @@ def information(self) -&gt; str:
     ----------
     fetch_all: `bool`
         Flag indicating whether all records should be feteched.
+    verbose: `bool`
+        Flag indicating whther a message should be printed to the console or not. 
     &#34;&#34;&#34;
 
     df = self.__get_results(
-        self.metadata_dob_complaints, fetch_all=fetch_all, **kwargs
+        self.metadata_dob_complaints, fetch_all=fetch_all, verbose=verbose, **kwargs
     )
     return df</code></pre>
 </details>
 </dd>
 <dt id="Brownsville.data_api.Client.load_housing_maintenance"><code class="name flex">
-<span>def <span class="ident">load_housing_maintenance</span></span>(<span>self, fetch_all: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
+<span>def <span class="ident">load_housing_maintenance</span></span>(<span>self, fetch_all: bool = False, verbose: bool = False, **kwargs) ‑> pandas.core.frame.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return a DataFrame containing all records from the Complaint Problems dataset.</p>
@@ -1020,13 +1194,15 @@ def information(self) -&gt; str:
 <dl>
 <dt><strong><code>fetch_all</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Flag indicating whether all records should be feteched.</dd>
+<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whther a message should be printed to the console or not.</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def load_housing_maintenance(
-    self, fetch_all: bool = False, **kwargs
+    self, fetch_all: bool = False, verbose:bool=False, **kwargs
 ) -&gt; pd.DataFrame:
     &#34;&#34;&#34;
     Return a DataFrame containing all records from the Complaint Problems dataset.
@@ -1035,12 +1211,49 @@ def information(self) -&gt; str:
     ----------
     fetch_all: `bool`
         Flag indicating whether all records should be feteched.
+    verbose: `bool`
+        Flag indicating whther a message should be printed to the console or not. 
     &#34;&#34;&#34;
 
     df = self.__get_results(
-        self.metadata_housing_maintenance, fetch_all=fetch_all, **kwargs
+        self.metadata_housing_maintenance, fetch_all=fetch_all, verbose=verbose, **kwargs
     )
 
+    return df</code></pre>
+</details>
+</dd>
+<dt id="Brownsville.data_api.Client.load_pluto"><code class="name flex">
+<span>def <span class="ident">load_pluto</span></span>(<span>self, fetch_all: bool = False, verbose: bool = False, **kwargs) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return a DataFrame containing all records from the Primary Land Use Tax Lot Output (PLUTO) dataset.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>fetch_all</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whether all records should be feteched.</dd>
+<dt><strong><code>verbose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Flag indicating whther a message should be printed to the console or not.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_pluto(
+    self, fetch_all: bool = False, verbose:bool=False, **kwargs
+) -&gt; None:
+    &#34;&#34;&#34;
+    Return a DataFrame containing all records from the Primary Land Use Tax Lot Output (PLUTO) dataset.
+
+    Parameters
+    ----------
+    fetch_all: `bool`
+        Flag indicating whether all records should be feteched.
+    verbose: `bool`
+        Flag indicating whther a message should be printed to the console or not. 
+    &#34;&#34;&#34;
+    df = self.__get_results(
+        self.metadata_pluto, fetch_all=fetch_all, verbose=verbose, **kwargs
+    )
     return df</code></pre>
 </details>
 </dd>
@@ -1051,8 +1264,7 @@ def information(self) -&gt; str:
 <span>(</span><span>client: sodapy.socrata.Socrata = None, endpoint: str = '', **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>DatasetMetaInformation(client: sodapy.socrata.Socrata = None, endpoint: str = '', **kwargs)</p>
-<p>Initialize the Datset Meta Infomation class according to the provided endpoint.</p>
+<div class="desc"><p>Initialize the Datset Meta Infomation class according to the provided endpoint.</p>
 <h2 id="parameters">Parameters:</h2>
 <p>client: <code>Socrata</code>
 Socrata client used by the <code><a title="Brownsville.data_api.Client" href="#Brownsville.data_api.Client">Client</a></code> class.
@@ -1211,7 +1423,7 @@ def information(self) -&gt; str:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class UnknownDatasetException(Exception):
-    def __init__(self, msg:str = &#34;Passed dataset not in list of valid dataset&#34;) -&gt; None:
+    def __init__(self, msg: str = &#34;Passed dataset not in list of valid dataset&#34;) -&gt; None:
         super().__init__(msg)</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -1246,6 +1458,7 @@ def information(self) -&gt; str:
 <li><code><a title="Brownsville.data_api.Client.load_complaint_problems" href="#Brownsville.data_api.Client.load_complaint_problems">load_complaint_problems</a></code></li>
 <li><code><a title="Brownsville.data_api.Client.load_dob_complaints" href="#Brownsville.data_api.Client.load_dob_complaints">load_dob_complaints</a></code></li>
 <li><code><a title="Brownsville.data_api.Client.load_housing_maintenance" href="#Brownsville.data_api.Client.load_housing_maintenance">load_housing_maintenance</a></code></li>
+<li><code><a title="Brownsville.data_api.Client.load_pluto" href="#Brownsville.data_api.Client.load_pluto">load_pluto</a></code></li>
 </ul>
 </li>
 <li>

@@ -41,7 +41,9 @@ class GeocodeClient:
 
     BASE_URL = &#34;http://www.mapquestapi.com/geocoding/v1/address&#34;
 
-    def __init__(self, token:str) -&gt; None:
+    def __init__(self, token:str=None) -&gt; None:
+        if not token:
+            token = TOKEN
         self.__token = token
 
 
@@ -71,6 +73,34 @@ class GeocodeClient:
         lat, lng = results[&#34;latLng&#34;].values()
 
         return lat, lng
+
+    def get_zip(self, street_address:str, city:str, state:str) -&gt; str:
+        &#34;&#34;&#34;
+        Makes a geocode API call to fetch the zip code of the specified address.
+
+        Paramters:
+        ----------
+        street_address: `str`
+            Street name to search the coordinates.
+        city: `str`
+            City name to search the coordinates.
+        state: `str`
+            State name to search the coordinates.
+        &#34;&#34;&#34;
+        try:
+            url = self.parse_query(
+                key=self.__token,
+                location=[street_address, city, state]
+            )
+
+            response = requests.get(url)
+            
+            results = json.loads(response.content)[&#34;results&#34;][0][&#34;locations&#34;][0]
+            zip_code = results[&#34;postalCode&#34;][:5]
+
+            return zip_code
+        except:
+            print(street_address, city, state)
 
     def parse_query(self, **kwargs) -&gt; str:
         &#34;&#34;&#34;
@@ -102,7 +132,7 @@ class GeocodeClient:
 <dl>
 <dt id="Brownsville.geocode.GeocodeClient"><code class="flex name class">
 <span>class <span class="ident">GeocodeClient</span></span>
-<span>(</span><span>token: str)</span>
+<span>(</span><span>token: str = None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -114,7 +144,9 @@ class GeocodeClient:
 
     BASE_URL = &#34;http://www.mapquestapi.com/geocoding/v1/address&#34;
 
-    def __init__(self, token:str) -&gt; None:
+    def __init__(self, token:str=None) -&gt; None:
+        if not token:
+            token = TOKEN
         self.__token = token
 
 
@@ -144,6 +176,34 @@ class GeocodeClient:
         lat, lng = results[&#34;latLng&#34;].values()
 
         return lat, lng
+
+    def get_zip(self, street_address:str, city:str, state:str) -&gt; str:
+        &#34;&#34;&#34;
+        Makes a geocode API call to fetch the zip code of the specified address.
+
+        Paramters:
+        ----------
+        street_address: `str`
+            Street name to search the coordinates.
+        city: `str`
+            City name to search the coordinates.
+        state: `str`
+            State name to search the coordinates.
+        &#34;&#34;&#34;
+        try:
+            url = self.parse_query(
+                key=self.__token,
+                location=[street_address, city, state]
+            )
+
+            response = requests.get(url)
+            
+            results = json.loads(response.content)[&#34;results&#34;][0][&#34;locations&#34;][0]
+            zip_code = results[&#34;postalCode&#34;][:5]
+
+            return zip_code
+        except:
+            print(street_address, city, state)
 
     def parse_query(self, **kwargs) -&gt; str:
         &#34;&#34;&#34;
@@ -218,6 +278,51 @@ Zip code to search the coordinates.</p></div>
     return lat, lng</code></pre>
 </details>
 </dd>
+<dt id="Brownsville.geocode.GeocodeClient.get_zip"><code class="name flex">
+<span>def <span class="ident">get_zip</span></span>(<span>self, street_address: str, city: str, state: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Makes a geocode API call to fetch the zip code of the specified address.</p>
+<h2 id="paramters">Paramters:</h2>
+<p>street_address: <code>str</code>
+Street name to search the coordinates.
+city: <code>str</code>
+City name to search the coordinates.
+state: <code>str</code>
+State name to search the coordinates.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_zip(self, street_address:str, city:str, state:str) -&gt; str:
+    &#34;&#34;&#34;
+    Makes a geocode API call to fetch the zip code of the specified address.
+
+    Paramters:
+    ----------
+    street_address: `str`
+        Street name to search the coordinates.
+    city: `str`
+        City name to search the coordinates.
+    state: `str`
+        State name to search the coordinates.
+    &#34;&#34;&#34;
+    try:
+        url = self.parse_query(
+            key=self.__token,
+            location=[street_address, city, state]
+        )
+
+        response = requests.get(url)
+        
+        results = json.loads(response.content)[&#34;results&#34;][0][&#34;locations&#34;][0]
+        zip_code = results[&#34;postalCode&#34;][:5]
+
+        return zip_code
+    except:
+        print(street_address, city, state)</code></pre>
+</details>
+</dd>
 <dt id="Brownsville.geocode.GeocodeClient.parse_query"><code class="name flex">
 <span>def <span class="ident">parse_query</span></span>(<span>self, **kwargs) ‑> str</span>
 </code></dt>
@@ -269,6 +374,7 @@ Zip code to search the coordinates.</p></div>
 <ul class="">
 <li><code><a title="Brownsville.geocode.GeocodeClient.BASE_URL" href="#Brownsville.geocode.GeocodeClient.BASE_URL">BASE_URL</a></code></li>
 <li><code><a title="Brownsville.geocode.GeocodeClient.get_lat_lng" href="#Brownsville.geocode.GeocodeClient.get_lat_lng">get_lat_lng</a></code></li>
+<li><code><a title="Brownsville.geocode.GeocodeClient.get_zip" href="#Brownsville.geocode.GeocodeClient.get_zip">get_zip</a></code></li>
 <li><code><a title="Brownsville.geocode.GeocodeClient.parse_query" href="#Brownsville.geocode.GeocodeClient.parse_query">parse_query</a></code></li>
 </ul>
 </li>
