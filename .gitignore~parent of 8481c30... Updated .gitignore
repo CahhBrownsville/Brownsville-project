@@ -1,0 +1,35 @@
+# Pycache directories
+**/__pycache__/*
+
+# VS Code workspace 
+workspace.code-workspace
+.vscode/settings.json
+
+# Pickle files
+*.pickle
+
+# Configuration file
+config.yaml
+
+# pdf files
+*.pdf
+
+# data path
+data/old
+
+# Large datasets
+complaint-problems-raw.csv
+housing-maintenance-code-complaints-raw.csv
+
+# Dataset metadata
+metadata.pickle
+
+# Old analysis
+brownsville_analysis.ipynb
+old_files
+
+# documentation HTML files
+html
+
+# vscode file
+.vscode
