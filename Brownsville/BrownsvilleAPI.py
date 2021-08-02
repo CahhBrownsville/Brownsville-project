@@ -89,6 +89,9 @@ class Brownsville:
         building_id: `int`
             ID used as key to search the dataframe. 
         """
+        if not building_id:
+            raise IndexError("A building id  must be passed.") 
+
         index = self.data["buildingid"].values.searchsorted(building_id)
         return self.data.iloc[index]
 
@@ -121,7 +124,10 @@ class Brownsville:
         num_of_complaints = self.complaint_number(building_id)
         residential_units = self.get_residential_units(building_id)
 
-        return num_of_complaints / residential_units
+        if residential_units == 0:
+            return -1
+
+        return round(num_of_complaints / residential_units, 3)
 
     def get_residential_units(self, building_id: int) -> int:
         """
@@ -132,8 +138,6 @@ class Brownsville:
         building_id: `int`
             ID used as key to search the dataframe.
         """
-        if building_id:
-            raise IndexError("A building id  must be passed.") 
 
         row = self.get_record_by_building_id(building_id)
 
@@ -621,6 +625,9 @@ class Brownsville:
                 building_id
             )
             complaint = f"{major_category.title()} - {minor_category.title()}"
+            complaint_to_runits = self.complaint_to_residential_unit_ratio(building_id)
+            if complaint_to_runits == -1:
+                complaint_to_runits = 0
 
             owner = building_info['ownername']
             if pd.isna(building_info['ownername']):
@@ -637,21 +644,23 @@ class Brownsville:
                         <b>{address}</b>
                         <br>
                         <br>
+                        <b>Building ID:</b> {building_id}
+                        <br>
                         <b>Owner:</b> {owner}
                         <br>
                         <b>Owner type:</b> {building_info['ownertypelong']}
                         <br>
-                        <b>Number of residential units:</b> {building_info['unitsres']}
-                        <br>
                         <b>Yeart built:</b> {age_info}
-                        <br>
-                        <b>Number of reports:</b> {number_of_reports}
-                        <br>
-                        <b>Building ID:</b> {building_id}
                         <br>
                         <b>Latitude:</b> {latitude}
                         <br>
                         <b>Longitude:</b> {longitude}
+                        <br>
+                        <b>Number of residential units:</b> {building_info['unitsres']}
+                        <br>
+                        <b>Number of complaints:</b> {number_of_reports}
+                        <br>
+                        <b>Complaint to residential units ratio:</b> {complaint_to_runits}
                         <br>
                         <b>Most frequent complaint:</b> {complaint}
                     </div>
@@ -671,8 +680,8 @@ class Brownsville:
                 """
             )
 
-            popup = folium.Popup(iframe, min_width=450,
-                                 max_width=450, parse_html=True)
+            popup = folium.Popup(iframe, min_width=500,
+                                 max_width=500, parse_html=True)
             
             marker = folium.Marker(
                 location=[latitude, longitude],
