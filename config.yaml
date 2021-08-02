@@ -1,6 +1,0 @@
-sodapy:
-  app_token: "Insert the NYC Open Data app token here"
-  username: "Insert the NYC Open Data username here"
-  password: "Insert the NYC Open Data password here"
-geocode:
-  app_token: "Insert the MapQuest app token here"
