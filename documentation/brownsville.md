@@ -151,10 +151,11 @@ alteration began
 ---
 ## Record statistics
 
-|        Metric                     |   Value   | 
-|:---------------------------------:|:---------:|
-| Number of complaints              | 68,128    |
-| Number of buildings               | 2603      |
-| Total number of residential units | 42,420    |
-| Number of major category types    | 15        |
-| Number of minor category types    | 67        |
+|        Metric                     |       Value       | 
+|:---------------------------------:|:-----------------:|
+| Number of complaints              | 68,128            |
+| Number of buildings               | 2603              |
+| Total number of residential units | 42,420            |
+| Number of major category types    | 15                |
+| Number of minor category types    | 67                |
+| Date range                        | 08/2009 - 06/2021 |
