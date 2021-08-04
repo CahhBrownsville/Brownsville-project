@@ -73,50 +73,50 @@ Before comparing these datasets, we will look at a breif overview of each datase
                     the 311 Citizen Services Center, Code Enforcement Borough Offices or the internet for conditions which violate the New York City Housing Maintenance Code (HMC) or the New York State Multiple Dwelling Law (MDL). Each complaint is associated with one or more problems reported by the complainant. Problems are closed if a tenant verifies by phone that the condition was corrected or an inspection result is entered by an HPD inspector. A complaint is closed when all associated problems are closed.
 - **URL:** https://data.cityofnewyork.us/Housing-Development/Housing-Maintenance-Code-Complaints/uwyv-629c/
 - **Field descriptions:**
-	- **StreetName:**
-		- **Description:** Date when the complaint was received.
-		- **Type:** `Number`
-	- **Apartment:**
-		- **Description:** System generated unique identifier given to a complaint record.
+	- **ComplaintID:**
+		- **Description:** System generated unique identifier given to a complaint record
 		- **Type:** `Number`
 	- **BuildingID:**
-		- **Description:** Boro code (1 = Manhattan, 2 = Bronx, 3 = Brooklyn, 4 = Queens, 5 = Staten Island).
+		- **Description:** 	Unique identifier given to a building record
 		- **Type:** `Number`
-	- **HouseNumber:**
-		- **Description:** Numeric value representing the complaint status (see ComplaintStatus below).
-		- **Type:** `Plain Text`
 	- **BoroughID:**
-		- **Description:** Complaint zip code.
-		- **Type:** `Plain Text`
-	- **StatusDate:**
-		- **Description:** Unique number to identify complaint status.
-		- **Type:** `Plain Text`
-	- **Zip:**
-		- **Description:** Complaint house number.
-		- **Type:** `Plain Text`
-	- **ReceivedDate:**
-		- **Description:** Unique identifier given to a building record.
+		- **Description:** Unique number to identify Borough
 		- **Type:** `Number`
-	- **ComplaintID:**
-		- **Description:** Number assigned by DoF identifying the Tax block the lot is on.
-		- **Type:** `Number`
-	- **Status:**
-		- **Description:** unique number to identify Borough.
-		- **Type:** `Plain Text`
-	- **StatusID:**
-		- **Description:** Date when the complaint status was updated.
-		- **Type:** `Number`
-	- **CommunityBoard:**
-		- **Description:** Number of the unit or apartment in a building.
-		- **Type:** `Date & Time`
 	- **Borough:**
-		- **Description:** Unique number identifying a Community District/Board, which is a political geographical area within a borough of the City of NY.
-		- **Type:** `Number`
-	- **Lot:**
-		- **Description:** Complaint street name.
+		- **Description:** Boro code (1 = Manhattan, 2 = Bronx, 3 = Brooklyn, 4 = Queens, 5 = Staten Island)
+		- **Type:** `Plain Text`
+	- **HouseNumber:**
+		- **Description:** Complaint house number
+		- **Type:** `Plain Text`
+	- **StreetName:**
+		- **Description:** Complaint street name
+		- **Type:** ``Plain Text``
+	- **Zip:**
+		- **Description:** Complaint zip code
 		- **Type:** `Plain Text`
 	- **Block:**
-		- **Description:** Unique number assigned by DoF within a Block identifying a lot.
+		- **Description:** Number assigned by DoF identifying the Tax block the lot is on
+		- **Type:** `Number`
+	- **Lot:**
+		- **Description:** Unique number assigned by DoF within a Block identifying a lot
+		- **Type:** `Number`
+	- **Apartment:**
+		- **Description:** Number of the unit or apartment in a building
+		- **Type:** `Plain Text`
+	- **CommunityBoard:**
+		- **Description:** Unique number identifying a Community District/Board, which is a political geographical area within a borough of the City of NY
+		- **Type:** `Number`
+	- **ReceivedDate:**
+		- **Description:** Date when the complaint was received	
+		- **Type:** `Date & Time`
+	- **Status:**
+		- **Description:** Unique number to identify complaint status
+		- **Type:** `Plain Text`
+	- **StatusID:**
+		- **Description:** Numeric value representing the complaint status (see ComplaintStatus below)
+		- **Type:** `Number`
+	- **StatusDate:**
+		- **Description:** Date when the complaint status was updated
 		- **Type:** `Date & Time`
 
 ### 3) Primary Land Use Tax Lot Output (PLUTO)
