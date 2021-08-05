@@ -11,9 +11,6 @@ workspace.code-workspace
 # Pickle files
 *.pickle
 
-# Configuration file
-config.yaml
-
 # pdf files
 *.pdf
 
