@@ -605,6 +605,8 @@ class Brownsville:
         name: `str`
             Name of the marker cluster
         """
+        
+        NA = "N/A"
 
         # load the icon creation function
         icon_create_function = ""
@@ -624,10 +626,15 @@ class Brownsville:
             major_category, minor_category = self.get_common_complaint_categories(
                 building_id
             )
+
             complaint = f"{major_category.title()} - {minor_category.title()}"
             complaint_to_runits = self.complaint_to_residential_unit_ratio(building_id)
             if complaint_to_runits == -1:
-                complaint_to_runits = 0
+                complaint_to_runits = NA
+
+            residential_units = building_info['unitsres']
+            if residential_units == 0:
+                residential_units = NA
 
             owner = building_info['ownername']
             if pd.isna(building_info['ownername']):
@@ -636,7 +643,7 @@ class Brownsville:
             age_info = f"{building_info['yearbuilt']} ({self.get_building_age(building_id)} years old)"
             if building_info["yearbuilt"] == 0:
                 age_info = "UNKNOWN"
-
+            
             alterations = building_info["yearalter1"]
             iframe = folium.IFrame(
                 html=f"""
@@ -650,13 +657,13 @@ class Brownsville:
                         <br>
                         <b>Owner type:</b> {building_info['ownertypelong']}
                         <br>
-                        <b>Yeart built:</b> {age_info}
+                        <b>Year built:</b> {age_info}
                         <br>
                         <b>Latitude:</b> {latitude}
                         <br>
                         <b>Longitude:</b> {longitude}
                         <br>
-                        <b>Number of residential units:</b> {building_info['unitsres']}
+                        <b>Number of residential units:</b> {residential_units}
                         <br>
                         <b>Number of complaints:</b> {number_of_reports}
                         <br>

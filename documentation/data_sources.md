@@ -1,143 +1,12 @@
-# Data Sources Proposal
+# Data Sources
 
 ## Sources 
-For the Brownsville project, we have proposed a set of data sources to explore and analyze, namely _311 Service Requests from 2010 to Present_, _Complain Problems_, and _DOB Complaints Received_. 
+For the Brownsville project, we have proposed a set of data sources to explore and analyze, namely _Complain Problems_, _Housing Maintenance Code Complaints_, and _DOB Complaints Received_. 
 
 Before comparing these datasets, we will look at a breif overview of each dataset and their Field descriptions. 
 
 ----------
-### 1) 311 Service Requests from 2010 to Present
-- **Agency:** 311
-- **URL:** https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9
-- **Description:** All 311 Service Requests from 2010 to present. This information is automatically updated daily.
-- **Field descriptions:**
-        - **Description:** Unique identifier of a Service Request (SR) in the open data set 
-        - **Type:** `Plain Text`
-    - **Created Date**
-        - **Description:** Date SR was created 
-        - **Type:** `Date & Time`
-    - **Closed Date**
-        - **Description:** Date SR was closed by responding agency 
-        - **Type:** `Date & Time`
-    - **Agency**
-        - **Description:** Acronym of responding City Government Agency 
-        - **Type:** `Plain Text`
-    - **Agency Name**
-        - **Description:** Full Agency name of responding City Government Agency 
-        - **Type:** `Plain Text`
-    - **Complaint Type**
-        - **Description:** This is the first level of a hierarchy identifying the topic of the incident or condition. Complaint Type may have a corresponding Descriptor (below) or may stand alone. 
-        - **Type:** `Plain Text`
-    - **Descriptor**
-        - **Description:** This is associated to the Complaint Type, and provides further detail on the incident or condition. Descriptor values are dependent on the Complaint Type, and are not always required in SR. 
-        - **Type:** `Plain Text`
-    - **Status**
-        - **Description:** Describes the type of location used in the address information 
-        - **Type:** `Plain Text`
-    - **Due Date**
-        - **Description:** Incident location zip code, provided by geo validation. 
-        - **Type:** `Plain Text`
-    - **Resolution Action Updated Date**
-        - **Description:** House number of incident address provided by submitter. 
-        - **Type:** `Plain Text`
-    - **Resolution Description**
-        - **Description:** Street name of incident address provided by the submitter 
-        - **Type:** `Plain Text`
-    - **Location Type**
-        - **Description:** First Cross street based on the geo validated incident location 
-        - **Type:** `Plain Text`
-    - **Incident Zip**
-        - **Description:** Second Cross Street based on the geo validated incident location 
-        - **Type:** `Plain Text`
-    - **Incident Address**
-        - **Description:** First intersecting street based on geo validated incident location 
-        - **Type:** `Plain Text`
-    - **Street Name**
-        - **Description:** Second intersecting street based on geo validated incident location 
-        - **Type:** `Plain Text`
-    - **Cross Street 1**
-        - **Description:** Type of incident location information available. 
-        - **Type:** `Plain Text`
-    - **Cross Street 2**
-        - **Description:** City of the incident location provided by geovalidation. 
-        - **Type:** `Plain Text`
-    - **Intersection Street 1**
-        - **Description:** If the incident location is identified as a Landmark the name of the landmark will display here 
-        - **Type:** `Plain Text`
-    - **Intersection Street 2**
-        - **Description:** If available, this field describes the type of city facility associated to the SR 
-        - **Type:** `Plain Text`
-    - **Address Type**
-        - **Description:** Status of SR submitted 
-        - **Type:** `Plain Text`
-    - **City**
-        - **Description:** Date when responding agency is expected to update the SR. This is based on the Complaint Type and internal Service Level Agreements (SLAs). 
-        - **Type:** `Date & Time`
-    - **Landmark**
-        - **Description:** Describes the last action taken on the SR by the responding agency. May describe next or future steps. 
-        - **Type:** `Plain Text`
-    - **Facility Type**
-        - **Description:** Date when responding agency last updated the SR. 
-        - **Type:** `Date & Time`
-    - **Community Board**
-        - **Description:** Provided by geovalidation. 
-        - **Type:** `Plain Text`
-    - **BBL**
-        - **Description:** Borough Block and Lot, provided by geovalidation. Parcel number to identify the location of location of buildings and properties in NYC. 
-        - **Type:** `Plain Text`
-    - **Borough**
-        - **Description:** Provided by the submitter and confirmed by geovalidation. 
-        - **Type:** `Plain Text`
-    - **X Coordinate (State Plane)**
-        - **Descriptio:n* Geo validated, X coordinate of the incident location.: 
-        -** Typ:**: `Number`
-    - **Y Coordinate (State Plane)**
-        - **Descriptio:n* Geo validated, Y coordinate of the incident location.: 
-        -** Typ:**: `Number`
-    - **Open_Data_Channel_Type**
-        - **Description:** Indicates how the SR was submitted to 311. i.e. By Phone, Online, Mobile, Other or Unknown. 
-        - **Type:** `Plain Text`
-    - **Latitude**
-        - **Description:** If the incident location is a Parks Dept facility, the Name of the facility will appear here 
-        - **Type:** `Plain Text`
-    - **Longitude**
-        - **Description:** The borough of incident if it is a Parks Dept facility 
-        - **Type:** `Plain Text`
-    - **Location**
-        - **Description:** If the incident is a taxi, this field describes the type of TLC vehicle. 
-        - **Type:** `Plain Text`
-    - **Park Facility Name**
-        - **Description:** If the incident is identified as a taxi, this field will display the borough of the taxi company. 
-        - **Type:** `Plain Text`
-    - **Park Borough**
-        - **Description:** If the incident is identified as a taxi, this field displays the taxi pick up location 
-        - **Type:** `Plain Text`
-    - **Vehicle Type**
-        - **Description:** If the incident is identified as a Bridge/Highway, the name will be displayed here. 
-        - **Type:** `Plain Text`
-    - **Taxi Company Borough**
-        - **Description:** If the incident is identified as a Bridge/Highway, the direction where the issue took place would be displayed here. 
-        - **Type:** `Plain Text`
-    - **Taxi Pick Up Location**
-        - **Description:** If the incident location was Bridge/Highway this column differentiates if the issue was on the Road or the Ramp. 
-        - **Type:** `Plain Text`
-    - **Bridge Highway Name**
-        - **Description:** Additional information on the section of the Bridge/Highway were the incident took place. 
-        - **Type:** `Plain Text`
-    - **Bridge Highway Direction**
-        - **Description:** Geo based Lat of the incident location: 
-        - **Type:** `Number`
-    - **Road Ramp**
-        - **Description** Geo based Long of the incident location: 
-        - **Type:** `Number`
-    - **Bridge Highway Segment**
-        - **Description:** Combination of the geo based lat & long of the incident location 
-        - **Type:** `Location`
-
-`Note:` This data does not present a full picture of 311 calls or service requests, in part because of operational and system complexities associated with remote call taking necessitated by the unprecedented volume 311 is handling during the Covid-19 crisis. The City is working to address this issue.
-
-
-### 2) Complaint Problems
+### 1) Complaint Problems
 - **Agency:** Department of Housing Preservation and Development (HPD)
 - **URL:** https://data.cityofnewyork.us/Housing-Development/Complaint-Problems/a2nx-4u46
 - **Description:** Contains information about problems associated with complaints.
@@ -198,321 +67,384 @@ Before comparing these datasets, we will look at a breif overview of each datase
         - **Type:** `Plain Text`
 
 
-### 3) DOB Complaints Received
-- **Agency:** 	Department of Buildings (DOB)
-- **Description:** This is the universe of complaints received by Department of Buildings (DOB). It includes complaints that come from 311 or that are entered into the system by DOB staff.
-- **URL:** https://data.cityofnewyork.us/Housing-Development/DOB-Complaints-Received/eabe-havv
+### 2) Housing Maintenance Code Complaints
+- **Agency:** 	Department of Housing Preservation and Development (HPD)
+- **Description:** The Department of Housing Preservation and Development (HPD) records complaints that are made by the public through
+                    the 311 Citizen Services Center, Code Enforcement Borough Offices or the internet for conditions which violate the New York City Housing Maintenance Code (HMC) or the New York State Multiple Dwelling Law (MDL). Each complaint is associated with one or more problems reported by the complainant. Problems are closed if a tenant verifies by phone that the condition was corrected or an inspection result is entered by an HPD inspector. A complaint is closed when all associated problems are closed.
+- **URL:** https://data.cityofnewyork.us/Housing-Development/Housing-Maintenance-Code-Complaints/uwyv-629c/
 - **Field descriptions:**
-    - **Complaint Number**
-        - **Description:** Complaint number starting with 
+	- **ComplaintID:**
+		- **Description:** System generated unique identifier given to a complaint record
+		- **Type:** `Number`
+	- **BuildingID:**
+		- **Description:** 	Unique identifier given to a building record
+		- **Type:** `Number`
+	- **BoroughID:**
+		- **Description:** Unique number to identify Borough
+		- **Type:** `Number`
+	- **Borough:**
+		- **Description:** Boro code (1 = Manhattan, 2 = Bronx, 3 = Brooklyn, 4 = Queens, 5 = Staten Island)
+		- **Type:** `Plain Text`
+	- **HouseNumber:**
+		- **Description:** Complaint house number
+		- **Type:** `Plain Text`
+	- **StreetName:**
+		- **Description:** Complaint street name
+		- **Type:** ``Plain Text``
+	- **Zip:**
+		- **Description:** Complaint zip code
+		- **Type:** `Plain Text`
+	- **Block:**
+		- **Description:** Number assigned by DoF identifying the Tax block the lot is on
+		- **Type:** `Number`
+	- **Lot:**
+		- **Description:** Unique number assigned by DoF within a Block identifying a lot
+		- **Type:** `Number`
+	- **Apartment:**
+		- **Description:** Number of the unit or apartment in a building
+		- **Type:** `Plain Text`
+	- **CommunityBoard:**
+		- **Description:** Unique number identifying a Community District/Board, which is a political geographical area within a borough of the City of NY
+		- **Type:** `Number`
+	- **ReceivedDate:**
+		- **Description:** Date when the complaint was received	
+		- **Type:** `Date & Time`
+	- **Status:**
+		- **Description:** Unique number to identify complaint status
+		- **Type:** `Plain Text`
+	- **StatusID:**
+		- **Description:** Numeric value representing the complaint status (see ComplaintStatus below)
+		- **Type:** `Number`
+	- **StatusDate:**
+		- **Description:** Date when the complaint status was updated
+		- **Type:** `Date & Time`
 
-        | Borough Code |    Borough    |
-        |:------------:|:-------------:|
-        |       1      |   Manhattan   |
-        |       2      |     Bronx     |
-        |       3      |   Brooklyn    |
-        |       4      |     Queens    |
-        |       5      | Staten Island |
+### 3) Primary Land Use Tax Lot Output (PLUTO)
+- **Agency:** 	Department of City Planning (DCP)
+- **Description:** Extensive land use and geographic data at the tax lot level in comma–separated values (CSV)
+                   file format. The PLUTO files contain more than seventy fields derived from data maintained by city agencies.
+                   <br>
+                   All previously released versions of this data are available at [BYTES of the BIG APPLE- Archive](https://www1.nyc.gov/site/planning/data-maps/open-data/bytes-archive.page?sorts[year]=0)
 
-        - **Type:** `Plain Text`
-    - **Status**
-        - **Description:** Status of Complaint
-        - **Type:** `Plain Text`
-    - **Date Entered**
-        - **Description:** Date Complaint was Entered
-        - **Type:** `Plain Text`
-    - **House Number**
-        - **Description:** House Number of Complaint
-        - **Type:** `Plain Text`
-    - **ZIP Code**
-        - **Description:** Zip code of complaint
-        - **Type:** `Plain Text`
-    - **House Street**
-        - **Description:** House Street of Complaint
-        - **Type:** `Plain Text`
-    - **BIN**
-        - **Description:** Number assigned by City Planning to a specific building
-        - **Type:** `Plain Text`
-    - **Community Board**
-        - **Description:** 3-digit identifier: Borough code = first position, last 2 = community board
-        - **Type:** `Plain Text`
-    - **Special District**
-        - **Description:** Is Complaint in Special District
-        - **Type:** `Plain Text`
-    - **Complaint Category**
-        - **Description:** DOB Complaint Category Codes (01-Accident Construction/Plumbing, etc.)
-        - **Type:** `Plain Text`
-    - **Unit**
-        - **Description:** Unit dispositioning Complaint
-        - **Type:** `Plain Text`
-    - **Disposition Date**
-        - **Description:** Date Complaint was Dispositioned
-        - **Type:** `Plain Text`
-    - **Disposition Code**
-        - **Description:** Disposition Code of Complaint (A1-Building Violations Served, L1-Partial Stop Work Order,etc.)
-        - **Type:** `Plain Text`
-    - **Inspection Date**
-        - **Descriptiona:** Inspection Date of Complaint
-        - **Type:** `Plain Text`
-    - **DOBRunDate**
-        - **Description:** Date when query is run and pushed to Open Data. Could be used to differentiate report dates.
-        - **Type:** `Date & Time`
+- **URL:** https://data.cityofnewyork.us/City-Government/Primary-Land-Use-Tax-Lot-Output-PLUTO-/64uk-42ks/
+- **Field descriptions:**
+	- **Borough:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Block:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Lot:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Community Board:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Census Tract 2010:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Cb2010:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Schooldist:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Council District:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Postcode:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Firecomp:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Policeprct:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Healtharea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Sanitboro:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Sanitsub:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Address:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Zonedist1:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Zonedist2:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Zonedist3:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Zonedist4:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Overlay1:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Overlay2:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Spdist1:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Spdist2:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Spdist3:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Ltdheight:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Splitzone:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Checkbox`
+	- **Bldgclass:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Landuse:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Easements:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Ownertype:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Ownername:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Lotarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Bldgarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Comarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Resarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Officearea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Retailarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Garagearea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Strgearea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Factryarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Otherarea:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Areasource:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Numbldgs:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Numfloors:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Unitsres:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Unitstotal:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Lotfront:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Lotdepth:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Bldgfront:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Bldgdepth:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Ext:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Proxcode:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Irrlotcode:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Checkbox`
+	- **Lottype:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Bsmtcode:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Assessland:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Assesstot:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Exempttot:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Yearbuilt:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Yearalter1:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Yearalter2:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Histdist:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Landmark:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Builtfar:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Residfar:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Commfar:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Facilfar:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Borocode:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **BBL:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Condono:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Tract2010:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Xcoord:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Ycoord:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Latitude:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Longitude:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Zonemap:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Zmcode:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Checkbox`
+	- **Sanborn:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Taxmap:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Edesignum:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Appbbl:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Appdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Date & Time`
+	- **Plutomapid:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Version:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Sanitdistrict:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Healthcenterdistrict:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Firm07_flag:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Pfirm15_flag:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Number`
+	- **Rpaddate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Dcasdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Zoningdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Landmkdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Basempdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Masdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Polidate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Edesigdate:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Geom:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Dcpedited:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
+	- **Notes:**
+		- **Description:** No descriptions provided for this dataset.
+		- **Type:** `Plain Text`
 
 <br>
 
-<h3><center> Table containing all field names from the aforementioned datasets </center></h1>
-
-|311 Service Requests from 2010 to Present|Complaint Problems|DOB Complaints Received|
-|:-----------------------------------:|:--------------------:|:--------------------:|
-| Unique Key                          | ProblemID            | Complaint Number     |
-| Created Date                        | ComplaintID          | Status               |
-| Closed Date                         | UnitTypeID           | Date Entered         |
-| Agency                              | UnitType             | House Number         |
-| Agency Name                         | SpaceTypeID          | ZIP Code             |
-| Complaint Type                      | SpaceType            | House Street         |
-| Descriptor                          | TypeID               | BIN                  |
-| Location Type                       | Type                 | Community Board      |
-| Incident Zip                        | MajorCategoryID      | Special District     |       
-| Incident Address                    | MajorCategory        | Complaint Category   |         
-| Street Name                         | MinorCategoryID      | Unit                 |
-| Cross Street 1                      | MinorCategory        | Disposition Date     |   
-| Cross Street 2                      | CodeID               | Disposition Code     |
-| Intersection Street 1               | Code                 | Inspection Date      |  
-| Intersection Street 2               | StatusID             | DOBRunDate           | 
-| Address Type                        | Status               |                      | 
-| City                                | StatusDate           |                      |  
-| Landmark                            | StatusDescription    |                      | 
-| Facility Type                       |                      |                      |
-| Status                              |                      |                      |
-| Due Date                            |                      |                      |
-| Resolution Description              |                      |                      |
-| Resolution Action Updated Date      |                      |                      | 
-| Community Board                     |                      |                      |
-| BBL                                 |                      |                      |
-| Borough                             |                      |                      |
-| X Coordinate (State Plane)          |                      |                      |  
-| Y Coordinate (State Plane)          |                      |                      |  
-| Open Data Channel Type              |                      |                      |
-| Park Facility Name                  |                      |                      |
-| Park Borough                        |                      |                      | 
-| Vehicle Type                        |                      |                      | 
-| Taxi Company Borough                |                      |                      |
-| Taxi Pick Up Location               |                      |                      |
-| Bridge Highway Name                 |                      |                      |
-| Bridge Highway Direction            |                      |                      |   
-| Road Ramp                           |                      |                      | 
-| Bridge Highway Segment              |                      |                      |
-| Latitude                            |                      |                      | 
-| Longitude                           |                      |                      |
-| Location                            |                      |                      |
 ---
-## Shared Fields
-This section contains information of fields that share the same information or could be potentially matched according to thier values. 
+## Table containing all the utilized field names from the aforementioned datasets
 
-1. Zip Code
-    - Datasets: 
-        - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-            - Field name(s): `Incident Zip`
-        - [DOB Complaints Received](#3-dob-complaints-received)
-            - Field name(s): `ZIP Code`
-2. Complaint category
-    - Datasets:
-        - [Complaint Problems](#2-complaint-problems)
-            - Field name(s): `MajorCategory`, `MinorCategory`
-        - [DOB Complaints Received](#3-dob-complaints-received)
-            - Field name(s): `Complaint Category`
-3. Address 
-    - Datasets:
-        - [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-            - Field name(s): `Incident Address`, `Street Name`, `Cross Street 1`, `Cross Street 2`, `Intersection Street 1`, `Intersection Street 2`, `Address Type`, `X Coordinate (State Plane)`, `Y Coordinate (State Plane)`, `Latitude`, `Longitude`, `Location`
-        - [DOB Complaints Received](#3-dob-complaints-received)
-            - Field name(s): `House Street`, `House Number`
-4. Status and resolution
-    - Datasets:
-        - [311 Service Requests](#311-service-requests-from-2010-to-present)
-            - Field name(s): `Status`, `Resolution Description`
-        - [Complaint Problems](#2-complaint-problems)
-            - Field name(s): `Status`, `StatusDescription`
-        - [DOB Complaints Received](#3-dob-complaints-received)
-            - Field name(s): `Status`
----
-## Building Coverage
-- Brownsville.csv
-    - 4653 unique buildings
-- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-    - 6797 unique buildings
-- [Complaint Problems](#2-complaint-problems)
-    - TBD
-- [DOB Complaints Received](#3-dob-complaints-received)
-    - 7978 unique buildings
-    
----
-## Types of Complaints
-- Brownsville.csv
-
-<center>
-        
-### Heat/hot water
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| ENTIRE BUILDING             | 22995 |
-| APARTMENT ONLY              | 17546 |
-
-
-### Unsanitary condition
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| PESTS                       | 12176 |
-| MOLD                        | 7017  |
-| GARBAGE/RECYCLING STORAGE   | 2413  |
-| SEWAGE                      | 561   |
-
-
-### Paint/plaster
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| WALL                        | 7662  |
-| CEILING                     | 6785  |
-| WINDOW/FRAME                | 232   |
-| RADIATOR                    | 183   |
-| DOOR/FRAME                  | 108   |
-| CABINET                     | 77    |
-
-
-### Plumbing
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| BASIN/SINK                  | 4441  |
-| WATER SUPPLY                | 2796  |
-| BATHTUB/SHOWER              | 2723  |
-| TOILET                      | 2245  |
-| RADIATOR                    | 1700  |
-| STEAM PIPE/RISER            | 278   |
-| BOILER                      | 68    |
-| SEWER                       | 45    |
-| WATER-LEAKS                 | 12    |
-
-
-### Door/Window
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| DOOR                        | 6075  |
-| WINDOW FRAME                | 3754  |
-| DOOR FRAME                  | 924   |
-| WINDOW PANE                 | 751   |
-| DOOR TO DUMBWAITER          | 20    |
-
-
-### Water leak
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| HEAVY FLOW                  | 4278  |
-| SLOW LEAK                   | 3637  |
-| DAMP SPOT                   | 1162  |
-
-
-### Electric
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| OUTLET/SWITCH               | 1956  |
-| NO LIGHTING                 | 1772  |
-| POWER OUTAGE                | 1562  |
-| LIGHTING                    | 1513  |
-| WIRING                      | 1020  |
-| BELL-BUZZER/INTERCOM        | 4     |
-| ELECTRIC-SUPPLY             | 4     |
-
-
-### General
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| CABINET                     | 2196  |
-| BELL/BUZZER/INTERCOM        | 1794  |
-| COOKING GAS                 | 1274  |
-| MAILBOX                     | 542   |
-| VENTILATION SYSTEM          | 427   |
-| JANITOR/SUPER               | 258   |
-| SIGNAGE MISSING             | 151   |
-| CERAMIC-TILE                | 3     |
-| DOORS                       | 3     |
-| FLOOR                       | 6     |
-| LOCKS                       | 7     |
-| MOLD                        | 2     |
-| STAIRS                      | 3     |
-| WINDOWS                     | 5     |
-
-
-### Flooring/stairs
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| FLOOR                       | 5981  |
-| STAIRS                      | 476   |
-
-
-### Safety
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| SMOKE DETECTOR              | 1668  |
-| CARBON MONOXIDE DETECTOR    | 1576  |
-| WINDOW GUARD BROKEN/MISSING | 889   |
-| FIRE ESCAPE                 | 830   |
-| SPRINKLER                   | 25    |
-| OUTLET COVER                | 2     |
-
-
-### Appliance
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| ELECTRIC/GAS RANGE          | 2618  |
-| REFRIGERATOR                | 1626  |
-
-
-### Outside building
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| ROOF DOOR/HATCH             | 203   |
-| ROOFING                     | 192   |
-| PAVEMENT                    | 122   |
-| SKYLIGHT                    | 59    |
-| GUTTER/LEADER               | 51    |
-| PORCH/BALCONY               | 21    |
-
-
-### Heating
-
-| Minor Category               | Number of reports |
-|-----------------------------|-------|
-| HEAT RELATED                | 73    |
-| HEAT-PLANT                  | 1     |
-
-</center>
-
-- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-    - TBD
-- [Complaint Problems](#2-complaint-problems)
-    - TBD
-- [DOB Complaints Received](#3-dob-complaints-received)
-    - TBD
-
----
-## Date range
-- Brownsville.csv
-    - 12/03/2003 - 04/30/2021
-- [311 Service Requests](#1-311-service-requests-from-2010-to-present)
-    - 01/01/2010 - 06/25/2021
-- [Complaint Problems](#2-complaint-problems)
-    - 02/36/2003 - 31/05/2021
-- [DOB Complaints Received](#3-dob-complaints-received)
-    - 01/03/1989 - 06/26/2021
+|  Complaint Problems  | Housing Maintenance Code Complaints | Primary Land Use Tax Lot Output (PLUTO) |
+|:--------------------:|:-----------------------------------:|:---------------------------------------:|
+| ComplaintID          | ComplaintID                         | bbl                                     |
+| UnitTypeID           | BuildingID                          | bldgclass                               |
+| SpaceTypeID          | BoroughID                           | bldgarea                                |
+| TypeID               | Borough                             | numbldgs                                |
+| MajorCategoryID      | HouseNumber                         | numfloors                               |
+| SpaceType            | StreetName                          | unitsres                                |
+| MinorCategoryID      | Zip                                 | unitstotal                              |
+| CodeID               | Block                               | landuse                                 |
+| StatusID             | Lot                                 | ownertype                               |      
+| StatusDate           | Apartment                           | ownername                               |
+| StatusDescription    | CommunityBoard                      | yearbuilt                               |
+| MinorCategory        | ReceivedDate                        | yearalter1                              |   
+|                      | StatusID                            | yearalter2                              |
+|                      | Status                              |                                         |  
+|                      | StatusDate                          |                                         |

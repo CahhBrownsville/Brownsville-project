@@ -1,3 +1,6 @@
+# .gitignore
+.gitignore
+
 # Pycache directories
 **/__pycache__/*
 
@@ -23,6 +26,9 @@ housing-maintenance-code-complaints-raw.csv
 
 # Dataset metadata
 metadata.pickle
+
+# configuration file
+config.yaml
 
 # Old analysis
 brownsville_analysis.ipynb
