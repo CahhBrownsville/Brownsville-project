@@ -27,9 +27,6 @@ housing-maintenance-code-complaints-raw.csv
 # Dataset metadata
 metadata.pickle
 
-# configuration file
-config.yaml
-
 # Old analysis
 brownsville_analysis.ipynb
 old_files
