@@ -2,7 +2,11 @@
 The Brownsville project is a set of tools and codebooks that recompile, merges, filters, and transforms a set of datasets representing complaints over the Brownsville area.
 
 # Overview
-The Brownsville project includes the `Brownsville API`, a set of Python modules that ensure that the dataset is up to date. Furthermore, this API acts as an interface between the clean `brownsville.csv` dataset and the user. 
+The Brownsville project includes the `Brownsville API`, a set of Python modules that ensure that the dataset is up to date. Furthermore, this API acts as an interface between the clean `brownsville.csv` dataset and the user. A current clean version of the dataset, along with analysis, can be found in the following locations of the repository:
+
+- `data/brownsville/brownsville.csv` Cleaned dataset containing complaints from the Brownsville area, with building information attached
+- `Brownsville API dataset analysis and visualizations.ipynb` Analysis of nature of complaints in the Brownsville area
+- `building age and size analysis.ipynb` Analysis of building age/sizes and relationship to complaints
 
 # Getting started
 This section will guide you on how to get the project running. 
@@ -76,7 +80,7 @@ Press `Create App` after filling in the app name.
 
 10. Save the changes in the `config.yaml` file. 
 # Documentation
-The `Brownsville API` code documentation is located on the wiki section of the repository. To visis the wiki, press the wiki button on the top navigation bar of the repository or click [here](wiki).
+The `Brownsville API` code documentation is located on the wiki section of the repository. To visit the wiki, press the wiki button on the top navigation bar of the repository or click [here](wiki).
 
 # Acknowledgement
 - [Folium-GroupedLayerControl](glc)
