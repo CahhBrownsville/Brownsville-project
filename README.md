@@ -7,6 +7,7 @@ The Brownsville project includes the `Brownsville API`, a set of Python modules 
 - `data/brownsville/brownsville.csv` Cleaned dataset containing complaints from the Brownsville area, with building information attached
 - `Brownsville API dataset analysis and visualizations.ipynb` Analysis of nature of complaints in the Brownsville area
 - `building age and size analysis.ipynb` Analysis of building age/sizes and relationship to complaints
+- `brownsville.html` Static version of the map displaying heatmap of complaints, and individual building summaries of complaints and typography
 
 # Getting started
 This section will guide you on how to get the project running. 
